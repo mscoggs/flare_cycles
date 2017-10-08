@@ -1,2 +1,3 @@
 # flare_cycles
-Searching for change in flare rates from Kepler Data
+Searching for changes in flare rates from Kepler Data
+
