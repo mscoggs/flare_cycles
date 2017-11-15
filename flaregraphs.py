@@ -1,11 +1,11 @@
-##to be used from terminal w/ command structure ----python flaregraphs.py STARID# ----
+##to be used from terminal ----python flaregraphs.py KIC# KIC# ----
 import sys
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from glob import glob
 
-for y in range(len(sys.argv)-1):
+for y in range(len(sys.argv) - 1):
 
     dir = sys.argv[y+1] #StarID/directory
     files = glob(dir+"/*.flare") #Glob all of the files in the directory - get all flares for a star
@@ -20,7 +20,7 @@ for y in range(len(sys.argv)-1):
     plt.xlabel("log Flare Energy - erg")
     plt.ylabel("Cummulative Flare Frequency - #/day")
     plt.title("Flare Frequency Data")
-    cmap = plt.cm.autumn # color scheme
+    cmap = plt.cm.Spectral # color scheme -- visible color spectrum, starting with red as the earliest
     np.seterr(invalid='ignore')#ignore the Nans
 
 
@@ -38,7 +38,8 @@ for y in range(len(sys.argv)-1):
         ffd_yFrequency = (np.arange(1, len(ffd_xEnergy)+1, 1))/toteDur #get evenly spaced intervals, divide by totedur to get flares/day
         ok68 = ffd_xEnergy >= np.log10(np.median(df['ED68i'])) + EPOINT #use ED68i to get indices of useful data, ignore the junk
 
-        plt.plot(ffd_xEnergy[ok68], ffd_yFrequency[ok68], c = cmap(x/float(len(files))))
+        plt.plot(ffd_xEnergy[ok68], ffd_yFrequency[ok68], c = cmap(x/float(len(files)))) #c = visible color spectrum over time, starting with red as the earliest
+
 
 plt.show()
 
