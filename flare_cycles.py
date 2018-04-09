@@ -236,11 +236,14 @@ def main():
     energyConstantList = [1, 1.5, 2, 2.5] #a list containing all of the energies we'll plot TVF at
     evfDir = 'energy_vs_frequency_plot'
     tvfDir = 'time_vs_frequency_plot'
+    fitData = 'fit_data'
 
     if not os.path.exists(evfDir): #searching for, and making the directories if they don't exist
         os.makedirs(evfDir)
     if not os.path.exists(tvfDir):
         os.makedirs(tvfDir)
+    if not os.path.exists(fitData):
+        os.makedirs(fitData)
 
     for energyConstant in energyConstantList:
 
