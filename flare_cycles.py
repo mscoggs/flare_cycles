@@ -236,12 +236,13 @@ def compareFits(xaxis, yaxis, errList):
 
         return bestFit, bestParameters, bestCovariance, bestChiSquare, bestFitDegree, size
 
-def main():
-    targetCount = getSize(sys.argv[1]) #getting the number of targets using the target file
+def main(inputfile):
+    targetCount = getSize(inputfile) #getting the number of targets using the target file
     show = False
-    if (len(sys.argv) == 3):
-        show = True
-    energyConstantList = [1, 1.5, 2, 2.5] #a list containing all of the energies we'll plot TVF at
+    # if (len(sys.argv) == 3):
+    #     show = True
+
+    energyConstantList = [0.5, 1, 1.5, 2, 2.5] #a list containing all of the energies we'll plot TVF at
     evfDir = 'energy_vs_frequency_plot'
     tvfDir = 'time_vs_frequency_plot'
     fitData = 'fit_data'
@@ -255,16 +256,28 @@ def main():
 
     for energyConstant in energyConstantList:
 
-        targets = open(sys.argv[1], "r") # a file containing all the KICs we want to plot
+        # a file containing all the KICs we want to plot
+        file = pd.read_csv(inputfile, names=['id', 'kics'])
+        targets = file['kics'].values
+
+        # the location of the appaloosa magic output stuff on Davenport's computer
+        datadir = '/Users/davenpj3/research/kepler-flares/'
+        fakelis = '0x56ff1094_fakes.lis'
+        fakes = pd.read_table(datadir + fakelis, names=['file'], delim_whitespace=True, usecols=(0,))
+
         fixedEnergy = energyConstant + EPOINT # the fixed energy value
         exportArray = np.zeros((targetCount + 2, 12), dtype='O') #what will become the data file containing all of our fit information
         exportArray[0] = ["#This is a file containing the parameters and errors involved in the best fit of a KIC's time vs frequency data",'','','','','','','','','','','']
         exportArray[1] = ["#KIC", 'N', 'best degree', 'chiSquare', 'X^3', 'X^2', 'X^1', 'X^0', 'Error3', 'Error2', 'Error1', 'Error0']
         targetIndex = 2
-        for line in targets: #going through each KIC
 
-            KIC = line.rstrip('\n') #stripping the return off each line
-            files = glob('KICS/'+KIC+"/*.flare") #Glob all of the files in the directory - get all flares for a star
+        for KIC in targets: # going through each KIC
+
+            # find all the .fake files (what Davenport previously stored)
+            star = np.where(fakes['file'].str.contains(str(KIC)))[0]
+
+            # Glob all of the files in the directory - get all flares for a star
+            files = glob(datadir + fakes['file'][star[0]][0:36] + '*.flare')
             fileCount = len(files)
 
             if(energyConstant == energyConstantList[0]):
@@ -277,4 +290,14 @@ def main():
         targets.close()
 
 
-main()
+# main()
+
+# file for Davenport to run on his workstation:
+# kics_to_study.txt
+
+if __name__ == "__main__":
+    import sys
+    inputfile = sys.argv[1]
+    main(inputfile)
+    #  = pd.read_csv(, names=['id', 'kics'])
+    # main(file['kics'].values, outdir='data/')
