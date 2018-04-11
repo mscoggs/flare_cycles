@@ -39,6 +39,13 @@ except:
 # Getting the number of KIC's that we'll be evaluating, used to initialize the np.array to the right size.
 # '''
 def getSize(file):
+    '''
+    Parameters
+    ----------
+    file : string
+        The path to the file that contains list of KICs
+
+    '''
     temp = pd.read_table(file, names=['kic'])
     getsize = temp['kic'].values
     return getsize.size
@@ -170,6 +177,7 @@ def plotTVF(KIC, files, fileCount, exportArray, fixedEnergy, targetIndex, **kwar
     errListUp = np.array([])
     errListDn = np.array([])
 
+    #loop over each .flare file
     for x in range(fileCount):
         toteDuration = pd.read_table(files[x], skiprows=5, nrows=1, header=None, delim_whitespace=True, usecols=(7,)).iloc[0].values[0] #getting the total duration of each file
         df = pd.read_table(files[x], comment="#", delimiter=",", names=names)
