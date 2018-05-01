@@ -122,7 +122,7 @@ def updateArray(exportArray, targetIndex, KIC, size, degree, bestParameters, bes
 # '''
 def plotEVF(KIC, files, fileCount, **kwargs):
     plt.figure(figsize=(9,7))
-    plt.title("FFD_X vs FFD_Y ("+KIC+')')
+    plt.title("FFD_X vs FFD_Y (" + str(KIC) + ')')
     plt.ylabel("Cummulative Flare Frequency (#/day)")
     plt.xlabel("Log Flare Energy (erg)")
     plt.yscale('log')
@@ -152,7 +152,7 @@ def plotEVF(KIC, files, fileCount, **kwargs):
                 errUp, errDn = calcError(ffdYFrequency[ok68], toteDuration)
                 plt.errorbar(ffdXEnergy[ok68], ffdYFrequency[ok68], yerr = [errDn, errUp], c = 'black', elinewidth=.3, fmt='o', markersize = .55)
 
-    plt.savefig('energy_vs_frequency_plot/'+KIC+'_whole_FFD.png')
+    plt.savefig('energy_vs_frequency_plot/'+ str(KIC) + '_whole_FFD.png')
     if(kwargs['show']==True):
         plt.show()
     plt.close()
@@ -165,12 +165,12 @@ def plotEVF(KIC, files, fileCount, **kwargs):
 # '''
 def plotTVF(KIC, files, fileCount, exportArray, fixedEnergy, targetIndex, **kwargs):
     plt.figure(figsize=(9,7))
-    plt.title("Time vs Frequency (KIC "+KIC+', E = '+str(fixedEnergy)+')')
+    plt.title("Time vs Frequency (KIC "+str(KIC)+', E = '+str(fixedEnergy)+')')
     plt.ylabel("Cummulative Flare Frequency (#/day)")
     plt.xlabel("Time (days)")
     plt.yscale('log')
-    plt.ylim([0.001,10])
-    plt.xlim([0,1800])
+    # plt.ylim([0.001,10])
+    # plt.xlim([0,1800])
 
     xaxis = np.array([])
     yaxis = np.array([])
@@ -205,7 +205,7 @@ def plotTVF(KIC, files, fileCount, exportArray, fixedEnergy, targetIndex, **kwar
     plt.plot(xaxis, bestFit, 'red', lw=1)
     plt.errorbar(xaxis, yaxis, yerr = [errListDn,errListUp], fmt='o', color= 'black',markersize=4, elinewidth=1,capsize=6)#plotting error
     plt.annotate('Degree Of Fit = {}\nChi-Square = {}'.format(bestFitDegree, '%.3f'%(bestChiSquare)), xy=(1750, 7),size=16, ha='right', va='top',bbox=dict(boxstyle='round', fc='w'))
-    plt.savefig('time_vs_frequency_plot/'+KIC+'_vs_time_E='+str(fixedEnergy)+'.png')
+    plt.savefig('time_vs_frequency_plot/'+str(KIC)+'_vs_time_E='+str(fixedEnergy)+'.png')
     if(kwargs['show']==True):
         plt.show()
     plt.close()
@@ -242,7 +242,7 @@ def main(inputfile):
     # if (len(sys.argv) == 3):
     #     show = True
 
-    energyConstantList = [0.5, 1, 1.5, 2, 2.5] #a list containing all of the energies we'll plot TVF at
+    energyConstantList = [1, 1.5, 2, 2.5] #a list containing all of the energies we'll plot TVF at
     evfDir = 'energy_vs_frequency_plot'
     tvfDir = 'time_vs_frequency_plot'
     fitData = 'fit_data'
@@ -287,7 +287,7 @@ def main(inputfile):
             targetIndex += 1
 
         np.savetxt('fit_data/fit_data_for_E='+str(fixedEnergy)+'.txt', exportArray, fmt = '% 15s', delimiter=' ', newline='\n', header='', footer='', comments='# ')
-        targets.close()
+    # targets.close()
 
 
 # main()
