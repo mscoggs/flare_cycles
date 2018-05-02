@@ -134,7 +134,8 @@ def plotEVF(KIC, files, fileCount, **kwargs):
         df = pd.read_table(files[x], comment="#", delimiter=",", names=names)
         energy = df['Equiv_Dur'] #This is the energy column of the flare data
         sort = np.argsort(energy) #get indices that would sort the energy array
-        ffdXEnergy = np.log10(energy[sort][::-1]) + EPOINT #log the reverse of sorted energy
+        ffdXEnergy = (np.log10(energy) + EPOINT)[sort][::-1]#log the reverse of sorted energy
+        ffdXEnergy = [x for x in ffdXEnergy if str(x) != 'nan']
         ffdYFrequency = (np.arange(1, len(ffdXEnergy)+1, 1))/toteDuration #get evenly spaced intervals, divide by totedur to get flares/day
 
         if(kwargs['whole']==True):  #plotting all data
@@ -183,24 +184,23 @@ def plotTVF(KIC, files, fileCount, exportArray, fixedEnergy, targetIndex, **kwar
         df = pd.read_table(files[x], comment="#", delimiter=",", names=names)
         energy = df['Equiv_Dur'] #This is the energy column of the flare data
         sort = np.argsort(energy) #get indices that would sort the energy array
-        ffdXEnergy = np.log10(energy[sort][::-1]) + EPOINT #log the reverse of sorted energy
+        ffdXEnergy = (np.log10(energy) + EPOINT)[sort][::-1] #log the reverse of sorted energy
+        ffdXEnergy = [x for x in ffdXEnergy if str(x) != 'nan']
         ffdYFrequency = (np.arange(1, len(ffdXEnergy)+1, 1))/toteDuration #get evenly spaced intervals, divide by totedur to get flares/day
 
         if(np.amax(ffdXEnergy) >= fixedEnergy >= np.amin(ffdXEnergy)): #checking that the energy constant isn't out of bound,otherwise, interpolate doesn't work
-            ok68 = ffdXEnergy >= np.log10(np.median(df['ED68i'])) + EPOINT #use ED68i to get indices of useful data, ignore the junk
+
             meanStart = np.sum(df['t_start'])/len(df['t_start']) #finding the mean time for a file
+            ffdYAtEnergy = np.interp(fixedEnergy, ffdXEnergy[::-1], ffdYFrequency[::-1])#interpolating the ffd_y
+            xaxis = np.append(xaxis, meanStart) #making lists so we can fit a line later
+            yaxis = np.append(yaxis, ffdYAtEnergy)
 
-            if any(ok68): #checking if ok68 contains at least one 'true'
-                ffdYAtEnergy = np.interp(fixedEnergy, ffdXEnergy[ok68][::-1], ffdYFrequency[ok68][::-1])#interpolating the ffd_y
-                xaxis = np.append(xaxis, meanStart) #making lists so we can fit a line later
-                yaxis = np.append(yaxis, ffdYAtEnergy)
-
-                errUp, errDn = calcError(ffdYAtEnergy, toteDuration)#dealing w/ error
-                errListUp = np.append(errListUp, errUp)
-                errListDn = np.append(errListDn, errDn)
+            errUp, errDn = calcError(ffdYAtEnergy, toteDuration)#dealing w/ error
+            errListUp = np.append(errListUp, errUp)
+            errListDn = np.append(errListDn, errDn)
+            #plt.errorbar(meanStart, ffdYAtEnergy, yerr = [[errDn],[errUp]], fmt='o', c = cmap(x/float(len(files))) ,markersize=4, elinewidth=1,capsize=6)#plotting error
 
     bestFit, bestParameters, bestCovariance, bestChiSquare, bestFitDegree, size = compareFits(xaxis, yaxis, errListUp)
-
     exportArray = updateArray(exportArray, targetIndex, KIC, size, bestFitDegree, bestParameters, bestChiSquare, bestCovariance)
     plt.plot(xaxis, bestFit, 'red', lw=1)
     plt.errorbar(xaxis, yaxis, yerr = [errListDn,errListUp], fmt='o', color= 'black',markersize=4, elinewidth=1,capsize=6)#plotting error
@@ -236,13 +236,13 @@ def compareFits(xaxis, yaxis, errList):
 
         return bestFit, bestParameters, bestCovariance, bestChiSquare, bestFitDegree, size
 
-def main(inputfile):
+'''def main(inputfile):
     targetCount = getSize(inputfile) #getting the number of targets using the target file
     show = False
     # if (len(sys.argv) == 3):
     #     show = True
 
-    energyConstantList = [1, 1.5, 2, 2.5] #a list containing all of the energies we'll plot TVF at
+    energyConstantList = [0.5, 1, 1.5, 2, 2.5] #a list containing all of the energies we'll plot TVF at
     evfDir = 'energy_vs_frequency_plot'
     tvfDir = 'time_vs_frequency_plot'
     fitData = 'fit_data'
@@ -289,9 +289,6 @@ def main(inputfile):
         np.savetxt('fit_data/fit_data_for_E='+str(fixedEnergy)+'.txt', exportArray, fmt = '% 15s', delimiter=' ', newline='\n', header='', footer='', comments='# ')
     # targets.close()
 
-
-# main()
-
 # file for Davenport to run on his workstation:
 # kics_to_study.txt
 
@@ -301,3 +298,46 @@ if __name__ == "__main__":
     main(inputfile)
     #  = pd.read_csv(, names=['id', 'kics'])
     # main(file['kics'].values, outdir='data/')
+'''
+
+## Scoggins main
+def main():
+    targetCount = getSize('KICs/targets.txt') #getting the number of targets using the target file
+    energyConstantList = [0.5, 1, 1.5, 2, 2.5] #a list containing all of the energies we'll plot TVF at
+    evfDir = 'energy_vs_frequency_plot'
+    tvfDir = 'time_vs_frequency_plot'
+    fitData = 'fit_data'
+
+    if not os.path.exists(evfDir): #searching for, and making the directories if they don't exist
+        os.makedirs(evfDir)
+    if not os.path.exists(tvfDir):
+        os.makedirs(tvfDir)
+    if not os.path.exists(fitData):
+        os.makedirs(fitData)
+
+    for energyConstant in energyConstantList:
+
+        targets = open('KICs/targets.txt', "r") # a file containing all the KICs we want to plot
+        fixedEnergy = energyConstant + EPOINT # the fixed energy value
+        exportArray = np.zeros((targetCount + 2, 12), dtype='O') #what will become the data file containing all of our fit information
+        exportArray[0] = ["#This is a file containing the parameters and errors involved in the best fit of a KIC's time vs frequency data",'','','','','','','','','','','']
+        exportArray[1] = ["#KIC", 'N', 'best degree', 'chiSquare', 'X^3', 'X^2', 'X^1', 'X^0', 'Error3', 'Error2', 'Error1', 'Error0']
+        targetIndex = 2
+
+        for line in targets: #going through each KIC
+
+            KIC = line.rstrip('\n') #stripping the return off each line
+            files = glob('KICS/'+KIC+"/*.flare") #Glob all of the files in the directory - get all flares for a star
+            fileCount = len(files)
+
+            plotTVF(KIC, files, fileCount, exportArray, fixedEnergy, targetIndex, show=False)
+
+            if(energyConstant == energyConstantList[0]):
+                plotEVF(KIC, files, fileCount,error=False, show=False, whole=True)
+
+            targetIndex += 1
+
+        np.savetxt('fit_data/fit_data_for_E='+str(fixedEnergy)+'.txt', exportArray, fmt = '% 15s', delimiter=' ', newline='\n', header='', footer='', comments='# ')
+        targets.close()
+
+main()
