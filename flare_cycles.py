@@ -120,11 +120,67 @@ def updateArray(exportArray, targetIndex, KIC, size, degree, bestParameters, bes
 # Plotting energy VS frequency. Will plot the entirety of the data unless whole==False, which will cause it to plot
 # only the data above the [ok68i] cutoff, which can be considered the 'significant' data
 # '''
+
 def plotEVF(KIC, files, fileCount, **kwargs):
     plt.figure(figsize=(9,7))
     plt.title("FFD_X vs FFD_Y (" + str(KIC) + ')')
     plt.ylabel("Cummulative Flare Frequency (#/day)")
-    plt.xlabel("Log Flare Energy (erg)")
+    plt.xlabel("Log Flare Energy")
+    plt.yscale('log')
+    errListUp = np.array([])
+    errListDn = np.array([])
+    totalEVFFitX = np.array([])
+    totalEVFFitY = np.array([])
+
+    for x in range(fileCount):
+        toteDuration = pd.read_table(files[x], skiprows=5, nrows=1, header=None, delim_whitespace=True, usecols=(7,)).iloc[0].values[0] #getting the total duration of each file
+        df = pd.read_table(files[x], comment="#", delimiter=",", names=names)
+        energy = df['Equiv_Dur'] #This is the energy column of the flare data
+        sort = np.argsort(energy) #get indices that would sort the energy array
+        ffdXEnergy = (np.log10(energy) + EPOINT)[sort][::-1]#log the reverse of sorted energy
+        ffdXEnergy = ffdXEnergy[np.isfinite(ffdXEnergy)]
+        ffdYFrequency = (np.arange(1, len(ffdXEnergy)+1, 1))/toteDuration #get evenly spaced intervals, divide by totedur to get flares/day
+
+        #Fitting a line
+        ok68 = ffdXEnergy >= np.log10(np.median(df['ED68i'])) + EPOINT
+        totalEVFFitX = np.append(totalEVFFitX, ffdXEnergy[ok68])
+        totalEVFFitY = np.append(totalEVFFitY, ffdYFrequency[ok68])
+
+
+        if(kwargs['whole']==True):  #plotting all data
+            plt.plot(ffdXEnergy, ffdYFrequency, lw = 1, c = cmap(x/float(fileCount)))
+
+            if(kwargs['error']==True):
+                errUp, errDn = calcError(ffdYFrequency, toteDuration)
+                plt.errorbar(ffdXEnergy, ffdYFrequency, yerr = [errDn, errUp], c = 'black', elinewidth=.3, fmt='o', markersize = .55)
+
+
+        else: #use ED68i to get indices of useful data, ignore the junk
+            plt.plot(ffdXEnergy[ok68], ffdYFrequency[ok68], lw = 1, c = cmap(x/float(len(files))))
+
+            if(kwargs['error']==True):
+                errUp, errDn = calcError(ffdYFrequency[ok68], toteDuration)
+                plt.errorbar(ffdXEnergy[ok68], ffdYFrequency[ok68], yerr = [errDn, errUp], c = 'black', elinewidth=.3, fmt='o', markersize = .55)
+
+    sort2 = np.argsort(totalEVFFitX)
+    totalEVFFitX = totalEVFFitX[sort2]
+    parameters, covariance = np.polyfit(totalEVFFitX, totalEVFFitY[sort2], 1, cov=True, full =False)
+    fit = np.polyval(parameters, totalEVFFitX)
+    plt.plot(totalEVFFitX, fit, c="red")
+    #plt.savefig('energy_vs_frequency_plot/'+ str(KIC) + '_whole_FFD.png')
+    if(kwargs['show']==True):
+        plt.show()
+
+# '''
+# Plotting energy VS frequency. Will plot the entirety of the data unless whole==False, which will cause it to plot
+# only the data above the [ok68i] cutoff, which can be considered the 'significant' data
+# '''
+'''
+def plotEVF(KIC, files, fileCount, **kwargs):
+    plt.figure(figsize=(9,7))
+    plt.title("FFD_X vs FFD_Y (" + str(KIC) + ')')
+    plt.ylabel("Cummulative Flare Frequency (#/day)")
+    plt.xlabel("Log Flare Energy")
     plt.yscale('log')
     errListUp = np.array([])
     errListDn = np.array([])
@@ -157,9 +213,71 @@ def plotEVF(KIC, files, fileCount, **kwargs):
     if(kwargs['show']==True):
         plt.show()
     plt.close()
+'''
+# Plotting energy VS frequency. Will plot the entirety of the data unless whole==False, which will cause it to plot
+# only the data above the [ok68i] cutoff, which can be considered the 'significant' data
+#
+'''
+def plotEVF(KIC, files, fileCount, **kwargs):
+    plt.figure(figsize=(9,7))
+    plt.title("FFD_X vs FFD_Y (" + str(KIC) + ')')
+    plt.ylabel("Cummulative Flare Frequency (#/day)")
+    plt.xlabel("Log Flare Energy")
+    plt.yscale('log')
+    errListUp = np.array([])
+    errListDn = np.array([])
+    totalEVFFitX = np.array([])
+    totalEVFFitY = np.array([])
 
+### FIT LINE FOR OK68CUTOFF
 
+    for x in range(fileCount):
+        toteDuration = pd.read_table(files[x], skiprows=5, nrows=1, header=None, delim_whitespace=True, usecols=(7,)).iloc[0].values[0] #getting the total duration of each file
+        df = pd.read_table(files[x], comment="#", delimiter=",", names=names)
+        energy = np.log10(df['Equiv_Dur']) #This is the energy column of the flare data
+        ok68 =  energy >= np.log10(np.median(df['ED68i'])) + EPOINT
+        energy = energy[ok68]
+        sort = np.argsort(energy) #get indices that would sort the energy array
+        print(ok68)
 
+        ffdXEnergy = (energy + EPOINT)[sort][::-1]#log the reverse of sorted energy
+        ffdYFrequency = (np.arange(1, len(ffdXEnergy)+1, 1))/toteDuration #get evenly spaced intervals, divide by totedur to get flares/day
+
+        newList = ffdXEnergy
+        newFreq = ffdYFrequency
+        totalEVFFitX = np.append(totalEVFFitX, newList)
+        totalEVFFitY = np.append(totalEVFFitY, newFreq)
+
+        #ffdXEnergy = [x for x in ffdXEnergy if str(x) != 'nan']
+
+        if(kwargs['whole']==True):  #plotting all data
+            plt.plot(ffdXEnergy, ffdYFrequency, lw = 1, c = cmap(x/float(fileCount)))
+
+            if(kwargs['error']==True):
+                errUp, errDn = calcError(ffdYFrequency, toteDuration)
+                plt.errorbar(ffdXEnergy, ffdYFrequency, yerr = [errDn, errUp], c = 'black', elinewidth=.3, fmt='o', markersize = .55)
+
+        else: #use ED68i to get indices of useful data, ignore the junk
+            ok68 = ffdXEnergy >= np.log10(np.median(df['ED68i'])) + EPOINT
+            plt.plot(ffdXEnergy[ok68], ffdYFrequency[ok68], lw = 1, c = cmap(x/float(len(files))))
+
+            if(kwargs['error']==True):
+                errUp, errDn = calcError(ffdYFrequency[ok68], toteDuration)
+                plt.errorbar(ffdXEnergy[ok68], ffdYFrequency[ok68], yerr = [errDn, errUp], c = 'black', elinewidth=.3, fmt='o', markersize = .55)
+
+    sort2 = np.argsort(totalEVFFitX) #get indices that would sort the energy array
+    totalEVFFitX = totalEVFFitX[sort2]
+    totalEVFFitY = totalEVFFitY[sort2]
+    print(totalEVFFitX[sort2])
+
+    parameters, covariance = np.polyfit(totalEVFFitX, totalEVFFitY, 1, cov=True, full =False)
+    fit = np.polyval(parameters, totalEVFFitX)
+    plt.plot(totalEVFFitX, fit, c="red")
+    plt.savefig('energy_vs_frequency_plot/'+ str(KIC) + '_whole_FFD.png')
+    if(kwargs['show']==True):
+        plt.show()
+    plt.close()
+'''
 # '''
 # Plotting time VS frequency. Determining which fit is best, then exporting the best fit and all previous fit data
 # to a file
@@ -183,7 +301,7 @@ def plotTVF(KIC, files, fileCount, exportArray, fixedEnergy, targetIndex, **kwar
         toteDuration = pd.read_table(files[x], skiprows=5, nrows=1, header=None, delim_whitespace=True, usecols=(7,)).iloc[0].values[0] #getting the total duration of each file
         df = pd.read_table(files[x], comment="#", delimiter=",", names=names)
         energy = df['Equiv_Dur'] #This is the energy column of the flare data
-        sort = np.argsort(energy) #get indices that would sort the energy array
+        sort = np.argsort(energy) #get inp.wherendices that would sort the energy array
         ffdXEnergy = (np.log10(energy) + EPOINT)[sort][::-1] #log the reverse of sorted energy
         ffdXEnergy = [x for x in ffdXEnergy if str(x) != 'nan']
         ffdYFrequency = (np.arange(1, len(ffdXEnergy)+1, 1))/toteDuration #get evenly spaced intervals, divide by totedur to get flares/day
@@ -301,6 +419,7 @@ if __name__ == "__main__":
 '''
 
 ## Scoggins main
+'''
 def main():
     targetCount = getSize('KICs/targets.txt') #getting the number of targets using the target file
     energyConstantList = [0.5, 1, 1.5, 2, 2.5] #a list containing all of the energies we'll plot TVF at
@@ -339,5 +458,48 @@ def main():
 
         np.savetxt('fit_data/fit_data_for_E='+str(fixedEnergy)+'.txt', exportArray, fmt = '% 15s', delimiter=' ', newline='\n', header='', footer='', comments='# ')
         targets.close()
+
+'''
+
+def main():
+    targetCount = getSize(sys.argv[1]) #getting the number of targets using the target file
+    energyConstantList = [1.5] #a list containing all of the energies we'll plot TVF at
+    evfDir = 'energy_vs_frequency_plot'
+    tvfDir = 'time_vs_frequency_plot'
+    fitData = 'fit_data'
+
+    if not os.path.exists(evfDir): #searching for, and making the directories if they don't exist
+        os.makedirs(evfDir)
+    if not os.path.exists(tvfDir):
+        os.makedirs(tvfDir)
+    if not os.path.exists(fitData):
+        os.makedirs(fitData)
+
+    for energyConstant in energyConstantList:
+
+        targets = open(sys.argv[1], "r") # a file containing all the KICs we want to plot
+        fixedEnergy = energyConstant + EPOINT # the fixed energy value
+        exportArray = np.zeros((targetCount + 2, 12), dtype='O') #what will become the data file containing all of our fit information
+        exportArray[0] = ["#This is a file containing the parameters and errors involved in the best fit of a KIC's time vs frequency data",'','','','','','','','','','','']
+        exportArray[1] = ["#KIC", 'N', 'best degree', 'chiSquare', 'X^3', 'X^2', 'X^1', 'X^0', 'Error3', 'Error2', 'Error1', 'Error0']
+        targetIndex = 2
+
+        for line in targets: #going through each KIC
+
+            KIC = line.rstrip('\n') #stripping the return off each line
+            files = glob('KICS/'+KIC+"/*.flare") #Glob all of the files in the directory - get all flares for a star
+            fileCount = len(files)
+
+            plotTVF(KIC, files, fileCount, exportArray, fixedEnergy, targetIndex, show=False)
+
+            if(energyConstant == energyConstantList[0]):
+                plotEVF(KIC, files, fileCount,error=False, show=True, whole=True)
+
+            targetIndex += 1
+
+        np.savetxt('fit_data/fit_data_for_E='+str(fixedEnergy)+'.txt', exportArray, fmt = '% 15s', delimiter=' ', newline='\n', header='', footer='', comments='# ')
+        targets.close()
+
+
 
 main()
