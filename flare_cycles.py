@@ -126,7 +126,7 @@ def plotEVF(KIC, files, fileCount, **kwargs):
     plt.title("FFD_X vs FFD_Y (" + str(KIC) + ')')
     plt.ylabel("Cummulative Flare Frequency (#/day)")
     plt.xlabel("Log Flare Energy")
-    plt.yscale('log')
+    #plt.yscale('log')
     errListUp = np.array([])
     errListDn = np.array([])
     totalEVFFitX = np.array([])
@@ -137,14 +137,18 @@ def plotEVF(KIC, files, fileCount, **kwargs):
         df = pd.read_table(files[x], comment="#", delimiter=",", names=names)
         energy = df['Equiv_Dur'] #This is the energy column of the flare data
         sort = np.argsort(energy) #get indices that would sort the energy array
-        ffdXEnergy = (np.log10(energy) + EPOINT)[sort][::-1]#log the reverse of sorted energy
+        #ffdXEnergy = (np.log10(energy) + EPOINT)[sort][::-1]#log the reverse of sorted energy
+        ffdXEnergy = (energy + EPOINT)[sort][::-1]#log the reverse of sorted energy
         ffdXEnergy = ffdXEnergy[np.isfinite(ffdXEnergy)]
         ffdYFrequency = (np.arange(1, len(ffdXEnergy)+1, 1))/toteDuration #get evenly spaced intervals, divide by totedur to get flares/day
 
         #Fitting a line
-        ok68 = ffdXEnergy >= np.log10(np.median(df['ED68i'])) + EPOINT
+        ok68 = ffdXEnergy >= np.median(df['ED68i']) + EPOINT
+        ffdXEnergy = np.log10(ffdXEnergy)
+        #ok68 = ffdXEnergy >= np.log10(np.median(df['ED68i'])) + EPOINT
         totalEVFFitX = np.append(totalEVFFitX, ffdXEnergy[ok68])
         totalEVFFitY = np.append(totalEVFFitY, ffdYFrequency[ok68])
+
 
 
         if(kwargs['whole']==True):  #plotting all data
