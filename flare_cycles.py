@@ -281,9 +281,8 @@ def plotEVF(KIC, files, fileCount, **kwargs):
         totalEVFFitY = np.append(totalEVFFitY, ffdYFrequency[ok68])
         quarterlyEVFX.append(ffdXEnergy[ok68])
         quarterlyEVFY.append(ffdYFrequency[ok68])
-        #quartlyEVFX[x] = ffdXEnergy[ok68]
-        #quartlyEVFY[x] = ffdYFrequency[ok68]
         time = np.append(time, np.sum(df['t_start'])/len(df['t_start'])) #finding the mean time for a file
+
 
         if(kwargs['whole']==True):  #plotting all data
             plt.plot(ffdXEnergy, ffdYFrequency, lw = 1, c = cmap(x/float(fileCount)))
