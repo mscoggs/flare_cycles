@@ -262,7 +262,9 @@ def plotEVF(KIC, files, fileCount, **kwargs):
     errListDn = np.array([])
     totalEVFFitX = np.array([])
     totalEVFFitY = np.array([])
-    quarterlyMean = np.array([])
+    quarterlyEVFX = []
+    quarterlyEVFY = []
+    meanValues = np.array([])
     time = np.array([])
 
 
@@ -277,7 +279,10 @@ def plotEVF(KIC, files, fileCount, **kwargs):
         ok68 = (ffdXEnergy >= np.log10(np.median(df['ED68i'])) + EPOINT)
         totalEVFFitX = np.append(totalEVFFitX, ffdXEnergy[ok68])
         totalEVFFitY = np.append(totalEVFFitY, ffdYFrequency[ok68])
-        quarterlyMean = np.append(quarterlyMean, np.mean(ffdYFrequency[ok68]))
+        quarterlyEVFX.append(ffdXEnergy[ok68])
+        quarterlyEVFY.append(ffdYFrequency[ok68])
+        #quartlyEVFX[x] = ffdXEnergy[ok68]
+        #quartlyEVFY[x] = ffdYFrequency[ok68]
         time = np.append(time, np.sum(df['t_start'])/len(df['t_start'])) #finding the mean time for a file
 
         if(kwargs['whole']==True):  #plotting all data
@@ -294,22 +299,23 @@ def plotEVF(KIC, files, fileCount, **kwargs):
                 errUp, errDn = calcError(ffdYFrequency[ok68], toteDuration)
                 plt.errorbar(ffdXEnergy[ok68], ffdYFrequency[ok68], yerr = [errDn, errUp], c = 'black', elinewidth=.3, fmt='o', markersize = .55)
 
-
-    parameters, covariance = np.polyfit(totalEVFFitX, totalEVFFitY, 1, cov=True, full =False)
-    fit = np.polyval(parameters, totalEVFFitX)
-    #plt.plot(totalEVFFitX, fit, c="red")
     #plt.savefig('energy_vs_frequency_plot/'+ str(KIC) + '_whole_FFD.png')
     if(kwargs['show']==True):
         plt.show()
     plt.close()
 
+
+    parameters, covariance = np.polyfit(totalEVFFitX, totalEVFFitY, 1, cov=True, full =False)
+    for q in range(fileCount):
+        fit = np.polyval(parameters, quarterlyEVFX[q])
+        meanValues = np.append(meanValues, np.mean(quarterlyEVFY[q]-fit))
+
     plt.figure(figsize=(9,7))
     plt.title("Time vs FFD_Y Mean Difference (" + str(KIC) + ')')
     plt.ylabel("quarterlyMean - totalMean")
     plt.xlabel("Time (days)")
-    meanFit = np.mean(fit)
-    meanDifference = quarterlyMean - meanFit
-    plt.plot(time,meanDifference, c="red")
+
+    plt.plot(time,meanValues, c="red")
     #plt.savefig('time_vs_mean_difference/'+ str(KIC) + '.png')
     if(kwargs['showMean']==True):
         plt.show()
