@@ -298,7 +298,7 @@ def plotEVF(KIC, files, fileCount, **kwargs):
                 errUp, errDn = calcError(ffdYFrequency[ok68], toteDuration)
                 plt.errorbar(ffdXEnergy[ok68], ffdYFrequency[ok68], yerr = [errDn, errUp], c = 'black', elinewidth=.3, fmt='o', markersize = .55)
 
-    #plt.savefig('energy_vs_frequency_plot/'+ str(KIC) + '_whole_FFD.png')
+    plt.savefig('energy_vs_frequency_plot/'+ str(KIC) + '_whole_FFD.png')
     if(kwargs['show']==True):
         plt.show()
     plt.close()
@@ -315,7 +315,7 @@ def plotEVF(KIC, files, fileCount, **kwargs):
     plt.xlabel("Time (days)")
 
     plt.plot(time,meanValues, c="red")
-    #plt.savefig('time_vs_mean_difference/'+ str(KIC) + '.png')
+    plt.savefig('time_vs_mean_difference/'+ str(KIC) + '.png')
     if(kwargs['showMean']==True):
         plt.show()
     plt.close()
@@ -387,7 +387,7 @@ def plotTVF(KIC, files, fileCount, exportArray, fixedEnergy, targetIndex, **kwar
     plt.plot(xaxis, bestFit, 'red', lw=1)
     plt.errorbar(xaxis, yaxis, yerr = [errListDn,errListUp], fmt='o', color= 'black',markersize=4, elinewidth=1,capsize=6)#plotting error
     #plt.annotate('Degree Of Fit = {}\nChi-Square = {}'.format(bestFitDegree, '%.3f'%(bestChiSquare)), xy=(250, 0.1),size=16, ha='right', va='top',bbox=dict(boxstyle='round', fc='w'))
-    #plt.savefig('time_vs_frequency_plot/'+str(KIC)+'_vs_time_E='+str(fixedEnergy)+'.png')
+    plt.savefig('time_vs_frequency_plot/'+str(KIC)+'_vs_time_E='+str(fixedEnergy)+'.png')
     if(kwargs['show']==True):
         plt.show()
     plt.close()
@@ -447,17 +447,18 @@ def compareFits(xaxis, yaxis, errList):
 
 
 
-#Davenport's main?
-'''def main(inputfile):
+#Davenport's main
+def main(inputfile):
     targetCount = getSize(inputfile) #getting the number of targets using the target file
     show = False
     # if (len(sys.argv) == 3):
     #     show = True
 
-    energyConstantList = [0.5, 1, 1.5, 2, 2.5] #a list containing all of the energies we'll plot TVF at
+    energyConstantList = [1.5] #a list containing all of the energies we'll plot TVF at
     evfDir = 'energy_vs_frequency_plot'
     tvfDir = 'time_vs_frequency_plot'
     fitData = 'fit_data'
+    meanFit = 'time_vs_mean_difference'
 
     if not os.path.exists(evfDir): #searching for, and making the directories if they don't exist
         os.makedirs(evfDir)
@@ -465,6 +466,8 @@ def compareFits(xaxis, yaxis, errList):
         os.makedirs(tvfDir)
     if not os.path.exists(fitData):
         os.makedirs(fitData)
+    if not os.path.exists(meanFit):
+        os.makedirs(meanFit)
 
     for energyConstant in energyConstantList:
 
@@ -495,7 +498,7 @@ def compareFits(xaxis, yaxis, errList):
             if(energyConstant == energyConstantList[0]):
                 plotEVF(KIC, files, fileCount, error=False, show=show, whole=True)
 
-            plotTVF(KIC, files, fileCount, exportArray, fixedEnergy, targetIndex, show=show)
+            #plotTVF(KIC, files, fileCount, exportArray, fixedEnergy, targetIndex, show=show)
             targetIndex += 1
 
         np.savetxt('fit_data/fit_data_for_E='+str(fixedEnergy)+'.txt', exportArray, fmt = '% 15s', delimiter=' ', newline='\n', header='', footer='', comments='# ')
@@ -510,15 +513,16 @@ if __name__ == "__main__":
     main(inputfile)
     #  = pd.read_csv(, names=['id', 'kics'])
     # main(file['kics'].values, outdir='data/')
-'''
 
+'''
 #Scoggins Main
 def main():
     targetCount = getSize(sys.argv[1]) #getting the number of targets using the target file
-    energyConstantList = [1.5] #a list containing all of the energies we'll plot TVF at
+    energyConstantList = [2] #a list containing all of the energies we'll plot TVF at
     evfDir = 'energy_vs_frequency_plot'
     tvfDir = 'time_vs_frequency_plot'
     fitData = 'fit_data'
+    meanFit = 'time_vs_mean_difference'
 
     if not os.path.exists(evfDir): #searching for, and making the directories if they don't exist
         os.makedirs(evfDir)
@@ -526,6 +530,8 @@ def main():
         os.makedirs(tvfDir)
     if not os.path.exists(fitData):
         os.makedirs(fitData)
+    if not os.path.exists(meanFit):
+        os.makedirs(meanFit)
 
     for energyConstant in energyConstantList:
 
@@ -542,16 +548,17 @@ def main():
             files = glob('KICS/'+KIC+"/*.flare") #Glob all of the files in the directory - get all flares for a star
             fileCount = len(files)
 
-            plotTVF(KIC, files, fileCount, exportArray, fixedEnergy, targetIndex, show=True)
+            #plotTVF(KIC, files, fileCount, exportArray, fixedEnergy, targetIndex, show=False)
 
             if(energyConstant == energyConstantList[0]):
-                plotEVF(KIC, files, fileCount,error=False, show=True, showMean=True, whole=True)
+                plotEVF(KIC, files, fileCount, error=False, show=False, showMean=False, whole=True)
 
             targetIndex += 1
 
-        #np.savetxt('fit_data/fit_data_for_E='+str(fixedEnergy)+'.txt', exportArray, fmt = '% 15s', delimiter=' ', newline='\n', header='', footer='', comments='# ')
+        np.savetxt('fit_data/fit_data_for_E='+str(fixedEnergy)+'.txt', exportArray, fmt = '% 15s', delimiter=' ', newline='\n', header='', footer='', comments='# ')
         targets.close()
 
 
 
 main()
+'''
