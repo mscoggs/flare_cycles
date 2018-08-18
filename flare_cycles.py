@@ -4,9 +4,17 @@ from glob import glob
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from scipy.optimize import curve_fit
-from scipy.optimize import leastsq
+import warnings
 
+
+
+
+
+
+#TODO:
+#double check error calc: when should you use sym and non sym?
+#BIC eval on meanFit
+#print out intermediate plot and double check that it's working: ok68 or all indices???
 
 EPOINT = 0
 np.seterr(invalid='ignore')
@@ -17,22 +25,29 @@ names=("t_start", "t_stop", "t_peak", "amplitude", "FWHM", "duration", "t_peak_a
        "KS_d_cont", "KS_p_cont", "Equiv_Dur", "ED68i", "ED90i")
 
 
+print("Input a .txt file containing the names of the KIC's you want to evaluate. After that, include:\n"+
+"For the Energy_vs_frequency analysis:\n'-se': show plots\n'-w' : show the whole plot, including data below ok68 cutoff\n'-ee': include error bars in the plots\n\n"+
+"For the Energy_vs_frequency mean-fit analysis:\n'-sm': show plots\n'-em': show error on the plots\n\n"+
+"For the Time_vs_fruency analysis:\n'-st': show plots\n\n"+
+"Use '-save' to save all of the plots\n" )
 
-def errorMsg():
-    print("input a .txt file containing the names of the KIC's you want to evaluate")
-
-if(len(sys.argv) == 1 or (sys.argv[1] == "help")):
-    errorMsg()
+if (len(sys.argv)==1):
+    print("ERROR: NO TARGET FILE INCLUDED")
     sys.exit()
 
 try:
     file = sys.argv[1]
     targets = open(file, "r") # a file containing all the KICs we want to plot
 except:
-    print("Error: Cannot open "+file+".")
+    print("\nERROR: Cannot open "+file+".")
     errorMsg()
     sys.exit()
 
+def check_args(key):
+    for x in range(len(sys.argv)-2):
+        if sys.argv[x+2]==key:
+            return True
+    return False
 
 
 
@@ -107,8 +122,12 @@ def calcError(data, multiple):
     errDn = (np.abs(data * (1.-1./(9. * data)-1./(3.*np.sqrt(data)))**3.-data))/multiple
     errUp = (np.sqrt(data + 0.75) + 1.0)/multiple
     return errUp, errDn
-
-
+'''
+    xn = np.where((n > 0))[0]
+    if np.size(xn) > 0:
+        err_dn[xn] = np.abs(n[xn] * (1.-1./(9. * n[xn])-1./(3.*np.sqrt(n[xn])))**3.-n[xn])
+        err_up[xn] = n[xn] + np.sqrt(n[xn] + 0.75) + 1.0 - n[xn]
+        '''
 
 def calcBic(size, degree, chiSq):
     '''Using the Bayesian Information Criterion calculation
@@ -169,6 +188,7 @@ def fitDegreeK(xaxis, yaxis, errList, degree, size):
     chiSq : float
         The Chi-Squared value.
     '''
+
     if(degree == 0):
         parameters = [np.mean(yaxis)]
         covariance = np.array([[np.std(yaxis)**2,0],[0,0]])
@@ -183,12 +203,12 @@ def fitDegreeK(xaxis, yaxis, errList, degree, size):
 
 
 
-def updateArray(exportArray, targetIndex, KIC, size, degree, bestParameters, bestChiSquare, bestCov):
+def updateArray(TVF_Fit_Data, targetIndex, KIC, size, degree, bestParameters, bestChiSquare, bestCov):
     '''Updating an array that contain all of the relevant fit data
 
     Parameters
     ----------
-    exportArray : array
+    TVF_Fit_Data : array
         The array that will be updated.
 
     targetIndex : integer
@@ -215,19 +235,19 @@ def updateArray(exportArray, targetIndex, KIC, size, degree, bestParameters, bes
 
     Returns
     -------
-    exportArray : array
+    TVF_Fit_Data : array
         The array being updated with the fit data, which will eventually be exported (written) to a file
     '''
-    exportArray[targetIndex, 0] = KIC
-    exportArray[targetIndex, 1] = size
-    exportArray[targetIndex,2] = degree
-    exportArray[targetIndex, 3] = '{}'.format('%.4f'%bestChiSquare)
+    TVF_Fit_Data[targetIndex, 0] = KIC
+    TVF_Fit_Data[targetIndex, 1] = size
+    TVF_Fit_Data[targetIndex,2] = degree
+    TVF_Fit_Data[targetIndex, 3] = '{}'.format('%.4f'%bestChiSquare)
     length = len(bestParameters)
 
     for x in range(length):
-        exportArray[targetIndex, (8-length+x)] = '{}'.format('%.4f'%bestParameters[x])
-        exportArray[targetIndex, (12-length+x)] = '{}'.format('%.4f'%(np.sqrt(bestCov[x,x])))
-    return exportArray
+        TVF_Fit_Data[targetIndex, (8-length+x)] = '{}'.format('%.4f'%bestParameters[x])
+        TVF_Fit_Data[targetIndex, (12-length+x)] = '{}'.format('%.4f'%(np.sqrt(bestCov[x,x])))
+    return TVF_Fit_Data
 
 
 
@@ -276,6 +296,7 @@ def plotEVF(KIC, files, fileCount, **kwargs):
         ffdXEnergy = np.log10((energy + EPOINT)[sort][::-1])#log the reverse of sorted energy
         ffdYFrequency = (np.arange(1, len(ffdXEnergy)+1, 1))/toteDuration #get evenly spaced intervals, divide by totedur to get flares/day
 
+        #ok68 = np.indices(ffdXEnergy)
         ok68 = (ffdXEnergy >= np.log10(np.median(df['ED68i'])) + EPOINT)
         totalEVFFitX = np.append(totalEVFFitX, ffdXEnergy[ok68])
         totalEVFFitY = np.append(totalEVFFitY, ffdYFrequency[ok68])
@@ -287,19 +308,20 @@ def plotEVF(KIC, files, fileCount, **kwargs):
         if(kwargs['whole']==True):  #plotting all data
             plt.plot(ffdXEnergy, ffdYFrequency, lw = 1, c = cmap(x/float(fileCount)))
 
-            if(kwargs['error']==True):
+            if(kwargs['errore']==True):
                 errUp, errDn = calcError(ffdYFrequency, toteDuration)
                 plt.errorbar(ffdXEnergy, ffdYFrequency, yerr = [errDn, errUp], c = 'black', elinewidth=.3, fmt='o', markersize = .55)
 
         else: #use ED68i to get indices of useful data, ignore the junk
             plt.plot(ffdXEnergy[ok68], ffdYFrequency[ok68], lw = 1, c = cmap(x/float(len(files))))
 
-            if(kwargs['error']==True):
+            if(kwargs['errore']==True):
                 errUp, errDn = calcError(ffdYFrequency[ok68], toteDuration)
                 plt.errorbar(ffdXEnergy[ok68], ffdYFrequency[ok68], yerr = [errDn, errUp], c = 'black', elinewidth=.3, fmt='o', markersize = .55)
 
-    plt.savefig('energy_vs_frequency_plot/'+ str(KIC) + '_whole_FFD.png')
-    if(kwargs['show']==True):
+    if(kwargs['save']==True):
+        plt.savefig('energy_vs_frequency_plot/'+ str(KIC) + '_whole_FFD.png')
+    if(kwargs['showe']==True):
         plt.show()
     plt.close()
 
@@ -307,16 +329,22 @@ def plotEVF(KIC, files, fileCount, **kwargs):
     parameters, covariance = np.polyfit(totalEVFFitX, totalEVFFitY, 1, cov=True, full =False)
     for q in range(fileCount):
         fit = np.polyval(parameters, quarterlyEVFX[q])
-        meanValues = np.append(meanValues, np.mean(quarterlyEVFY[q]-fit))
+        with warnings.catch_warnings(): #RuntimeWarning: Mean of empty slice.
+            warnings.simplefilter("ignore", category=RuntimeWarning)
+            meanValues = np.append(meanValues, np.mean(quarterlyEVFY[q]-fit))
 
     plt.figure(figsize=(9,7))
     plt.title("Time vs FFD_Y Mean Difference (" + str(KIC) + ')')
     plt.ylabel("quarterlyMean - totalMean")
     plt.xlabel("Time (days)")
-
     plt.plot(time,meanValues, c="red")
-    plt.savefig('time_vs_mean_difference/'+ str(KIC) + '.png')
-    if(kwargs['showMean']==True):
+
+    if(kwargs['errorm']==True):
+        errUp, errDn = calcError(meanValues, 1)
+        plt.errorbar(time, meanValues, yerr = [errDn, errUp], c = 'black', elinewidth=.3, fmt='o', markersize = .55)
+    if(kwargs['save']==True):
+        plt.savefig('time_vs_mean_difference/'+ str(KIC) + '.png')
+    if(kwargs['showm']==True):
         plt.show()
     plt.close()
 
@@ -324,7 +352,7 @@ def plotEVF(KIC, files, fileCount, **kwargs):
 
 
 
-def plotTVF(KIC, files, fileCount, exportArray, fixedEnergy, targetIndex, **kwargs):
+def plotTVF(KIC, files, fileCount, TVF_Fit_Data, fixedEnergy, targetIndex, **kwargs):
     '''Plotting the time versus frequency for the KIC data
 
     Parameters
@@ -338,14 +366,14 @@ def plotTVF(KIC, files, fileCount, exportArray, fixedEnergy, targetIndex, **kwar
     fileCount : integer
         The number of files.
 
-    exportArray : array
+    TVF_Fit_Data : array
         The array that gets updated with the fit data
 
     fixedEnergy : float
         The energy that being used to interpolate the frequency from each quarters EVF curve
 
     targetIndex : integer
-        An index that keeps track of where the exportArray should be updated
+        An index that keeps track of where the TVF_Fit_Data should be updated
 
     **kwargs
         Show : If True, shows the plots.
@@ -383,12 +411,14 @@ def plotTVF(KIC, files, fileCount, exportArray, fixedEnergy, targetIndex, **kwar
             #plt.errorbar(meanStart, ffdYAtEnergy, yerr = [[errDn],[errUp]], fmt='o', c = cmap(x/float(len(files))) ,markersize=4, elinewidth=1,capsize=6)#plotting error
 
     bestFit, bestParameters, bestCovariance, bestChiSquare, bestFitDegree, size = compareFits(xaxis, yaxis, errListUp)
-    exportArray = updateArray(exportArray, targetIndex, KIC, size, bestFitDegree, bestParameters, bestChiSquare, bestCovariance)
-    plt.plot(xaxis, bestFit, 'red', lw=1)
-    plt.errorbar(xaxis, yaxis, yerr = [errListDn,errListUp], fmt='o', color= 'black',markersize=4, elinewidth=1,capsize=6)#plotting error
+    TVF_Fit_Data = updateArray(TVF_Fit_Data, targetIndex, KIC, size, bestFitDegree, bestParameters, bestChiSquare, bestCovariance)
     #plt.annotate('Degree Of Fit = {}\nChi-Square = {}'.format(bestFitDegree, '%.3f'%(bestChiSquare)), xy=(250, 0.1),size=16, ha='right', va='top',bbox=dict(boxstyle='round', fc='w'))
-    plt.savefig('time_vs_frequency_plot/'+str(KIC)+'_vs_time_E='+str(fixedEnergy)+'.png')
-    if(kwargs['show']==True):
+    plt.errorbar(xaxis, yaxis, yerr = [errListDn,errListUp], fmt='o', color= 'black',markersize=4, elinewidth=1,capsize=6)#plotting error
+    plt.plot(xaxis, bestFit, 'red', lw=1)
+
+    if(kwargs['save']==True):
+        plt.savefig('time_vs_frequency_plot/'+str(KIC)+'_vs_time_E='+str(fixedEnergy)+'.png')
+    if(kwargs['showt']==True):
         plt.show()
     plt.close()
 
@@ -446,7 +476,7 @@ def compareFits(xaxis, yaxis, errList):
     return bestFit, bestParameters, bestCovariance, bestChiSquare, bestFitDegree, size
 
 
-
+'''
 #Davenport's main
 def main(inputfile):
     targetCount = getSize(inputfile) #getting the number of targets using the target file
@@ -457,15 +487,15 @@ def main(inputfile):
     energyConstantList = [1.5] #a list containing all of the energies we'll plot TVF at
     evfDir = 'energy_vs_frequency_plot'
     tvfDir = 'time_vs_frequency_plot'
-    fitData = 'fit_data'
+    TVFfitData = 'TVF_fit_data'
     meanFit = 'time_vs_mean_difference'
 
     if not os.path.exists(evfDir): #searching for, and making the directories if they don't exist
         os.makedirs(evfDir)
     if not os.path.exists(tvfDir):
         os.makedirs(tvfDir)
-    if not os.path.exists(fitData):
-        os.makedirs(fitData)
+    if not os.path.exists(TVFfitData):
+        os.makedirs(TVFfitData)
     if not os.path.exists(meanFit):
         os.makedirs(meanFit)
 
@@ -481,9 +511,9 @@ def main(inputfile):
         fakes = pd.read_table(datadir + fakelis, names=['file'], delim_whitespace=True, usecols=(0,))
 
         fixedEnergy = energyConstant + EPOINT # the fixed energy value
-        exportArray = np.zeros((targetCount + 2, 12), dtype='O') #what will become the data file containing all of our fit information
-        exportArray[0] = ["#This is a file containing the parameters and errors involved in the best fit of a KIC's time vs frequency data",'','','','','','','','','','','']
-        exportArray[1] = ["#KIC", 'N', 'best degree', 'chiSquare', 'X^3', 'X^2', 'X^1', 'X^0', 'Error3', 'Error2', 'Error1', 'Error0']
+        TVF_Fit_Data = np.zeros((targetCount + 2, 12), dtype='O') #what will become the data file containing all of our fit information
+        TVF_Fit_Data[0] = ["#This is a file containing the parameters and errors involved in the best fit of a KIC's time vs frequency data",'','','','','','','','','','','']
+        TVF_Fit_Data[1] = ["#KIC", 'N', 'best degree', 'chiSquare', 'X^3', 'X^2', 'X^1', 'X^0', 'Error3', 'Error2', 'Error1', 'Error0']
         targetIndex = 2
 
         for KIC in targets: # going through each KIC
@@ -498,10 +528,10 @@ def main(inputfile):
             if(energyConstant == energyConstantList[0]):
                 plotEVF(KIC, files, fileCount, error=False, show=show, whole=True)
 
-            #plotTVF(KIC, files, fileCount, exportArray, fixedEnergy, targetIndex, show=show)
+            #plotTVF(KIC, files, fileCount, TVF_Fit_Data, fixedEnergy, targetIndex, show=show)
             targetIndex += 1
 
-        np.savetxt('fit_data/fit_data_for_E='+str(fixedEnergy)+'.txt', exportArray, fmt = '% 15s', delimiter=' ', newline='\n', header='', footer='', comments='# ')
+        np.savetxt(TVFfitData+'/fit_data_for_E='+str(fixedEnergy)+'.txt', TVF_Fit_Data, fmt = '% 15s', delimiter=' ', newline='\n', header='', footer='', comments='# ')
     # targets.close()
 
 # file for Davenport to run on his workstation:
@@ -513,33 +543,67 @@ if __name__ == "__main__":
     main(inputfile)
     #  = pd.read_csv(, names=['id', 'kics'])
     # main(file['kics'].values, outdir='data/')
-
 '''
+
 #Scoggins Main
 def main():
     targetCount = getSize(sys.argv[1]) #getting the number of targets using the target file
-    energyConstantList = [2] #a list containing all of the energies we'll plot TVF at
     evfDir = 'energy_vs_frequency_plot'
     tvfDir = 'time_vs_frequency_plot'
-    fitData = 'fit_data'
+    TVFfitData = 'TVF_fit_data'
+    EVFMfitData = 'EVFM_fit_data'
     meanFit = 'time_vs_mean_difference'
 
     if not os.path.exists(evfDir): #searching for, and making the directories if they don't exist
         os.makedirs(evfDir)
     if not os.path.exists(tvfDir):
         os.makedirs(tvfDir)
-    if not os.path.exists(fitData):
-        os.makedirs(fitData)
+    if not os.path.exists(TVFfitData):
+        os.makedirs(TVFfitData)
+    if not os.path.exists(EVFMfitData):
+        os.makedirs(EVFMfitData)
     if not os.path.exists(meanFit):
         os.makedirs(meanFit)
 
+    SHOWE = check_args("-se")
+    ERRORE = check_args("-ee")
+    WHOLE = check_args("-w")
+    SHOWM = check_args("-sm")
+    ERRORM = check_args("-em")
+    SHOWT = check_args("-st")
+    SAVEPLOT = check_args("-saveplot")
+    SAVETXT = check_args("-savefit")
+
+
+    targets = open(sys.argv[1], "r") # a file containing all the KICs we want to plot
+    EVF_Mean_Fit_Data = np.zeros((targetCount + 2, 12), dtype='O') #what will become the data file containing all of our EVFMean fit information
+    EVF_Mean_Fit_Data[0] = ["#This is a file containing the parameters and errors involved in the best fit of a KIC's time vs frequency data",'','','','','','','','','','','']
+    EVF_Mean_Fit_Data[1] = ["#KIC", 'N', 'best degree', 'chiSquare', 'X^3', 'X^2', 'X^1', 'X^0', 'Error3', 'Error2', 'Error1', 'Error0']
+    targetIndex = 2
+
+    for line in targets: #going through each KIC
+
+        KIC = line.rstrip('\n') #stripping the return off each line
+        files = glob('KICS/'+KIC+"/*.flare") #Glob all of the files in the directory - get all flares for a star
+        fileCount = len(files)
+        plotEVF(KIC, files, fileCount, showe=SHOWE,errore=ERRORE,whole=WHOLE,showm=SHOWM,errorm=ERRORM,save=SAVEPLOT)
+
+    targets.close()
+    if(SAVETXT==True):
+        np.savetxt(EVFMfitData+'/fit_data_for_EVFM.txt', TVF_Fit_Data, fmt = '% 15s', delimiter=' ', newline='\n', header='', footer='', comments='# ')
+
+
+
+
+
+    energyConstantList = [2] #a list containing all of the energies we'll plot TVF at
     for energyConstant in energyConstantList:
 
         targets = open(sys.argv[1], "r") # a file containing all the KICs we want to plot
         fixedEnergy = energyConstant + EPOINT # the fixed energy value
-        exportArray = np.zeros((targetCount + 2, 12), dtype='O') #what will become the data file containing all of our fit information
-        exportArray[0] = ["#This is a file containing the parameters and errors involved in the best fit of a KIC's time vs frequency data",'','','','','','','','','','','']
-        exportArray[1] = ["#KIC", 'N', 'best degree', 'chiSquare', 'X^3', 'X^2', 'X^1', 'X^0', 'Error3', 'Error2', 'Error1', 'Error0']
+        TVF_Fit_Data = np.zeros((targetCount + 2, 12), dtype='O') #what will become the data file containing all of our fit information
+        TVF_Fit_Data[0] = ["#This is a file containing the parameters and errors involved in the best fit of a KIC's time vs frequency data",'','','','','','','','','','','']
+        TVF_Fit_Data[1] = ["#KIC", 'N', 'best degree', 'chiSquare', 'X^3', 'X^2', 'X^1', 'X^0', 'Error3', 'Error2', 'Error1', 'Error0']
         targetIndex = 2
 
         for line in targets: #going through each KIC
@@ -547,18 +611,13 @@ def main():
             KIC = line.rstrip('\n') #stripping the return off each line
             files = glob('KICS/'+KIC+"/*.flare") #Glob all of the files in the directory - get all flares for a star
             fileCount = len(files)
-
-            #plotTVF(KIC, files, fileCount, exportArray, fixedEnergy, targetIndex, show=False)
-
-            if(energyConstant == energyConstantList[0]):
-                plotEVF(KIC, files, fileCount, error=False, show=False, showMean=False, whole=True)
-
+            plotTVF(KIC, files, fileCount, TVF_Fit_Data, fixedEnergy, targetIndex, showt=SHOWT,save=SAVEPLOT)
             targetIndex += 1
 
-        np.savetxt('fit_data/fit_data_for_E='+str(fixedEnergy)+'.txt', exportArray, fmt = '% 15s', delimiter=' ', newline='\n', header='', footer='', comments='# ')
         targets.close()
+        if(SAVETXT==True):
+            np.savetxt(TVFfitData+'/fit_data_for_E='+str(fixedEnergy)+'.txt', TVF_Fit_Data, fmt = '% 15s', delimiter=' ', newline='\n', header='', footer='', comments='# ')
 
 
 
 main()
-'''
