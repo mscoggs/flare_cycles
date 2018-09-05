@@ -15,6 +15,18 @@ import warnings
 #double check error calc: when should you use sym and non sym?
 #BIC eval on meanFit
 #print out intermediate plot and double check that it's working: ok68 or all indices???
+#
+#Handling engative right?
+#BIC eval on new plot
+#print our intermeditate
+#   Is this oding what we want?
+#   Last few data poiunt 
+#Find 10-20 ebest plots
+#Ask davenport about data
+#ask 
+
+
+
 
 EPOINT = 0
 np.seterr(invalid='ignore')
@@ -40,7 +52,6 @@ try:
     targets = open(file, "r") # a file containing all the KICs we want to plot
 except:
     print("\nERROR: Cannot open "+file+".")
-    errorMsg()
     sys.exit()
 
 def check_args(key):
@@ -277,7 +288,7 @@ def plotEVF(KIC, files, fileCount, **kwargs):
     plt.title("FFD_X vs FFD_Y (" + str(KIC) + ')')
     plt.ylabel("Cummulative Flare Frequency (#/day)")
     plt.xlabel("Log Flare Energy")
-    plt.yscale('log')
+    #plt.yscale('log')
     errListUp = np.array([])
     errListDn = np.array([])
     totalEVFFitX = np.array([])
@@ -296,28 +307,26 @@ def plotEVF(KIC, files, fileCount, **kwargs):
         ffdXEnergy = np.log10((energy + EPOINT)[sort][::-1])#log the reverse of sorted energy
         ffdYFrequency = (np.arange(1, len(ffdXEnergy)+1, 1))/toteDuration #get evenly spaced intervals, divide by totedur to get flares/day
 
-        #ok68 = np.indices(ffdXEnergy)
         ok68 = (ffdXEnergy >= np.log10(np.median(df['ED68i'])) + EPOINT)
-        totalEVFFitX = np.append(totalEVFFitX, ffdXEnergy[ok68])
-        totalEVFFitY = np.append(totalEVFFitY, ffdYFrequency[ok68])
         quarterlyEVFX.append(ffdXEnergy[ok68])
         quarterlyEVFY.append(ffdYFrequency[ok68])
+        if(kwargs['whole']==True):  #plotting all data
+            ok68 = np.isfinite(ffdXEnergy)
+        totalEVFFitX = np.append(totalEVFFitX, ffdXEnergy[ok68])
+        totalEVFFitY = np.append(totalEVFFitY, ffdYFrequency[ok68])
         time = np.append(time, np.sum(df['t_start'])/len(df['t_start'])) #finding the mean time for a file
 
+        plt.plot(ffdXEnergy[ok68], ffdYFrequency[ok68], lw = 1, c = cmap(x/float(len(files))))
 
-        if(kwargs['whole']==True):  #plotting all data
-            plt.plot(ffdXEnergy, ffdYFrequency, lw = 1, c = cmap(x/float(fileCount)))
+        if(kwargs['errore']==True):
+            errUp, errDn = calcError(ffdYFrequency[ok68], toteDuration)
+            plt.errorbar(ffdXEnergy[ok68], ffdYFrequency[ok68], yerr = [errDn, errUp], c = 'black', elinewidth=.3, fmt='o', markersize = .55)
 
-            if(kwargs['errore']==True):
-                errUp, errDn = calcError(ffdYFrequency, toteDuration)
-                plt.errorbar(ffdXEnergy, ffdYFrequency, yerr = [errDn, errUp], c = 'black', elinewidth=.3, fmt='o', markersize = .55)
+    sort = np.argsort(totalEVFFitX)
+    parameters, covariance = np.polyfit(totalEVFFitX, totalEVFFitY, 1, cov=True, full =False)
+    plt.plot(totalEVFFitX[sort], np.polyval(parameters, totalEVFFitX[sort]), lw=2, c='black')
 
-        else: #use ED68i to get indices of useful data, ignore the junk
-            plt.plot(ffdXEnergy[ok68], ffdYFrequency[ok68], lw = 1, c = cmap(x/float(len(files))))
-
-            if(kwargs['errore']==True):
-                errUp, errDn = calcError(ffdYFrequency[ok68], toteDuration)
-                plt.errorbar(ffdXEnergy[ok68], ffdYFrequency[ok68], yerr = [errDn, errUp], c = 'black', elinewidth=.3, fmt='o', markersize = .55)
+    
 
     if(kwargs['save']==True):
         plt.savefig('energy_vs_frequency_plot/'+ str(KIC) + '_whole_FFD.png')
@@ -325,8 +334,6 @@ def plotEVF(KIC, files, fileCount, **kwargs):
         plt.show()
     plt.close()
 
-
-    parameters, covariance = np.polyfit(totalEVFFitX, totalEVFFitY, 1, cov=True, full =False)
     for q in range(fileCount):
         fit = np.polyval(parameters, quarterlyEVFX[q])
         with warnings.catch_warnings(): #RuntimeWarning: Mean of empty slice.
