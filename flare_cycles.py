@@ -22,7 +22,7 @@ import warnings
 EPOINT = 0
 np.seterr(invalid='ignore')
 plt.rcParams.update({'font.size': 20})
-cmap = plt.cm.Spectral # color scheme -- visible color spectrum, starting with red as the earliest
+cmap = plt.cm.RdYlBu # color scheme -- visible color spectrum, starting with red as the earliest
 names=("t_start", "t_stop", "t_peak", "amplitude", "FWHM", "duration", "t_peak_aflare1",
        "t_FWHM_aflare1", "amplitude_aflare1", "flare_chisq", "KS_d_model", "KS_p_model",
        "KS_d_cont", "KS_p_cont", "Equiv_Dur", "ED68i", "ED90i")
@@ -277,9 +277,10 @@ def plotEVF(KIC, files, fileCount,EVF_Mean_Fit_Data, targetIndex, **kwargs):
         Error : If True, shows the error bars on the plot.
     '''
     plt.figure(figsize=(9,7))
-    plt.title("FFD_X vs FFD_Y (" + str(KIC) + ')')
+    #plt.title("FFD_X vs FFD_Y (" + str(KIC) + ')')
+    plt.title(str(KIC))
     plt.ylabel("Cummulative Flare Frequency (#/day)")
-    plt.xlabel("Log Flare Energy")
+    plt.xlabel("Log Equivalent Duration")
     #plt.yscale('log')
     errListUp = np.array([])
     errListDn = np.array([])
@@ -318,7 +319,7 @@ def plotEVF(KIC, files, fileCount,EVF_Mean_Fit_Data, targetIndex, **kwargs):
     
     sort = np.argsort(totalEVFFitX)
     parameters, covariance = np.polyfit(totalEVFFitX, totalEVFFitY, 1, cov=True, full =False)
-    plt.plot(totalEVFFitX[sort], np.polyval(parameters, totalEVFFitX[sort]), lw=2, c='black')
+    plt.plot(totalEVFFitX[sort], np.polyval(parameters, totalEVFFitX[sort]), lw=4, c='black')
 
     
 
@@ -339,11 +340,12 @@ def plotEVF(KIC, files, fileCount,EVF_Mean_Fit_Data, targetIndex, **kwargs):
 
     bestFit, bestParameters, bestCovariance, bestChiSquare, bestFitDegree, size = compareFits(time, meanValues, errListUp)
     plt.figure(figsize=(9,7))
-    plt.title("Time vs FFD_Y Mean Difference (" + str(KIC) + ')')
+    #plt.title("Time vs FFD_Y Mean Difference (" + str(KIC) + ')')
+    plt.title(str(KIC))
     plt.ylabel("quarterlyMean - totalMean")
     plt.xlabel("Time (days)")
-    plt.plot(time,meanValues, 'red')
-    plt.plot(time, bestFit, 'red', lw=2)
+    plt.scatter(time,meanValues, c='red')
+    plt.plot(time, bestFit, 'black', lw=4)
 
     EVF_Mean_Fit_Data = updateArray(EVF_Mean_Fit_Data, targetIndex, KIC, size, bestFitDegree, bestParameters, bestChiSquare, bestCovariance)
 
@@ -387,7 +389,8 @@ def plotTVF(KIC, files, fileCount, TVF_Fit_Data, fixedEnergy, targetIndex, **kwa
         Show : If True, shows the plots.
     '''
     plt.figure(figsize=(9,7))
-    plt.title("Time vs Frequency (KIC "+str(KIC)+', E = '+str(fixedEnergy)+')')
+    #plt.title("Time vs Frequency (KIC "+str(KIC)+', E = '+str(fixedEnergy)+')')
+    plt.title(str(KIC))
     plt.ylabel("Cummulative Flare Frequency (#/day)")
     plt.xlabel("Time (days)")
     plt.yscale('log')
@@ -422,8 +425,8 @@ def plotTVF(KIC, files, fileCount, TVF_Fit_Data, fixedEnergy, targetIndex, **kwa
     bestFit, bestParameters, bestCovariance, bestChiSquare, bestFitDegree, size = compareFits(xaxis, yaxis, errListUp)
     TVF_Fit_Data = updateArray(TVF_Fit_Data, targetIndex, KIC, size, bestFitDegree, bestParameters, bestChiSquare, bestCovariance)
     #plt.annotate('Degree Of Fit = {}\nChi-Square = {}'.format(bestFitDegree, '%.3f'%(bestChiSquare)), xy=(250, 0.1),size=16, ha='right', va='top',bbox=dict(boxstyle='round', fc='w'))
-    plt.errorbar(xaxis, yaxis, yerr = [errListDn,errListUp], fmt='o', color= 'black',markersize=4, elinewidth=1,capsize=6)#plotting error
-    plt.plot(xaxis, bestFit, 'red', lw=1)
+    plt.errorbar(xaxis, yaxis, yerr = [errListDn,errListUp], fmt='o', color= 'red',markersize=4, elinewidth=1,capsize=6)#plotting error
+    plt.plot(xaxis, bestFit, 'black', lw=4)
 
     if(kwargs['save']==True):
         plt.savefig('time_vs_frequency_plot/'+str(KIC)+'_vs_time_E='+str(fixedEnergy)+'.png')
