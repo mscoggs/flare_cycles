@@ -5,14 +5,28 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import warnings
+from IPython.display import set_matplotlib_formats
 
+set_matplotlib_formats('pdf', 'png')
+plt.rcParams['savefig.dpi'] = 200
+plt.rcParams['figure.autolayout'] = False
+plt.rcParams['figure.figsize'] = 10, 10
+plt.rcParams['axes.labelsize'] = 14
+plt.rcParams['axes.titlesize'] = 16
+plt.rcParams['font.size'] = 20
+plt.rcParams['lines.linewidth'] = 1.5
+plt.rcParams['lines.markersize'] = 4
+plt.rcParams['legend.fontsize'] = 11
+plt.rcParams['xtick.direction'] = 'out'
+plt.rcParams['ytick.direction'] = 'out'
+BJD_2008 = 2454466.500000
 #TODO:
 #double check error calc: when should you use sym and non sym?
 #print out intermediate plot and double check that it's working: ok68 or all indices???
 #Handling engative right?
 #print our intermeditate
 #   Is this oding what we want?
-#   Last few data poiunt 
+#   Last few data poiunt
 #Find 10-20 ebest plots
 #Ask davenport about data
 
@@ -21,7 +35,6 @@ import warnings
 
 EPOINT = 0
 np.seterr(invalid='ignore')
-plt.rcParams.update({'font.size': 20})
 cmap = plt.cm.RdYlBu # color scheme -- visible color spectrum, starting with red as the earliest
 names=("t_start", "t_stop", "t_peak", "amplitude", "FWHM", "duration", "t_peak_aflare1",
        "t_FWHM_aflare1", "amplitude_aflare1", "flare_chisq", "KS_d_model", "KS_p_model",
@@ -290,7 +303,7 @@ def plotEVF(KIC, files, fileCount,EVF_Mean_Fit_Data, targetIndex, **kwargs):
     quarterlyEVFY = []
     meanValues = np.array([])
     time = np.array([])
-    
+
     for x in range(fileCount):
         toteDuration = pd.read_table(files[x], skiprows=5, nrows=1, header=None, delim_whitespace=True, usecols=(7,)).iloc[0].values[0] #getting the total duration of each file
         df = pd.read_table(files[x], comment="#", delimiter=",", names=names)
@@ -300,7 +313,7 @@ def plotEVF(KIC, files, fileCount,EVF_Mean_Fit_Data, targetIndex, **kwargs):
         ffdYFrequency = (np.arange(1, len(ffdXEnergy)+1, 1))/toteDuration #get evenly spaced intervals, divide by totedur to get flares/day
 
         ok68 = (ffdXEnergy >= np.log10(np.median(df['ED68i'])) + EPOINT)
-        
+
         if (any(ok68)):#taking care of the mean-fit data
             quarterlyEVFX.append(ffdXEnergy[ok68])
             quarterlyEVFY.append(ffdYFrequency[ok68])
@@ -316,12 +329,12 @@ def plotEVF(KIC, files, fileCount,EVF_Mean_Fit_Data, targetIndex, **kwargs):
         if(kwargs['errore']==True):
             errUp, errDn = calcError(ffdYFrequency[ok68], toteDuration)
             plt.errorbar(ffdXEnergy[ok68], ffdYFrequency[ok68], yerr = [errDn, errUp], c = 'black', elinewidth=.3, fmt='o', markersize = .55)
-    
+
     sort = np.argsort(totalEVFFitX)
     parameters, covariance = np.polyfit(totalEVFFitX, totalEVFFitY, 1, cov=True, full =False)
     plt.plot(totalEVFFitX[sort], np.polyval(parameters, totalEVFFitX[sort]), lw=4, c='black')
 
-    
+
 
     if(kwargs['save']==True):
         plt.savefig('energy_vs_frequency_plot/'+ str(KIC) + '_whole_FFD.png')
@@ -334,16 +347,15 @@ def plotEVF(KIC, files, fileCount,EVF_Mean_Fit_Data, targetIndex, **kwargs):
         with warnings.catch_warnings(): #RuntimeWarning: Mean of empty slice.
             warnings.simplefilter("ignore", category=RuntimeWarning)
             mean = np.mean(quarterlyEVFY[q]-fit)
-            meanValues = np.append(meanValues, mean) 
+            meanValues = np.append(meanValues, mean)
             errUp, errDn = calcError(mean, 1)#dealing w/ error
-            errListUp = np.append(errListUp,errUp) 
+            errListUp = np.append(errListUp,errUp)
 
     bestFit, bestParameters, bestCovariance, bestChiSquare, bestFitDegree, size = compareFits(time, meanValues, errListUp)
     plt.figure(figsize=(9,7))
-    #plt.title("Time vs FFD_Y Mean Difference (" + str(KIC) + ')')
     plt.title(str(KIC))
-    plt.ylabel("quarterlyMean - totalMean")
-    plt.xlabel("Time (days)")
+    plt.ylabel(r'$\sigma$ Per Quarter')
+    plt.xlabel("$BJD_{TDB}-2454832$")
     plt.scatter(time,meanValues, c='red')
     plt.plot(time, bestFit, 'black', lw=4)
 
@@ -391,8 +403,8 @@ def plotTVF(KIC, files, fileCount, TVF_Fit_Data, fixedEnergy, targetIndex, **kwa
     plt.figure(figsize=(9,7))
     #plt.title("Time vs Frequency (KIC "+str(KIC)+', E = '+str(fixedEnergy)+')')
     plt.title(str(KIC))
-    plt.ylabel("Cummulative Flare Frequency (#/day)")
-    plt.xlabel("Time (days)")
+    plt.ylabel("Cummulative Flare Frequency")
+    plt.xlabel("$BJD_{TDB}-2454832$")
     plt.yscale('log')
     xaxis = np.array([])
     yaxis = np.array([])
