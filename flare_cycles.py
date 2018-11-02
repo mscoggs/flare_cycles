@@ -10,10 +10,10 @@ from IPython.display import set_matplotlib_formats
 set_matplotlib_formats('pdf', 'png')
 plt.rcParams['savefig.dpi'] = 200
 plt.rcParams['figure.autolayout'] = False
-plt.rcParams['figure.figsize'] = 10, 10
+plt.rcParams['figure.figsize'] = 12,9 
 plt.rcParams['axes.labelsize'] = 14
 plt.rcParams['axes.titlesize'] = 16
-plt.rcParams['font.size'] = 20
+plt.rcParams['font.size'] = 25
 plt.rcParams['lines.linewidth'] = 1.5
 plt.rcParams['lines.markersize'] = 4
 plt.rcParams['legend.fontsize'] = 11
@@ -289,12 +289,12 @@ def plotEVF(KIC, files, fileCount,EVF_Mean_Fit_Data, targetIndex, **kwargs):
         Whole : If True, displays the entire EVF plot, rather than just the plot above the ok68 cutoff.
         Error : If True, shows the error bars on the plot.
     '''
-    plt.figure(figsize=(9,7))
+    plt.figure()
     #plt.title("FFD_X vs FFD_Y (" + str(KIC) + ')')
     plt.title(str(KIC))
     plt.ylabel("Cummulative Flare Frequency (#/day)")
     plt.xlabel("Log Equivalent Duration")
-    #plt.yscale('log')
+    plt.yscale('log')
     errListUp = np.array([])
     errListDn = np.array([])
     totalEVFFitX = np.array([])
@@ -352,7 +352,7 @@ def plotEVF(KIC, files, fileCount,EVF_Mean_Fit_Data, targetIndex, **kwargs):
             errListUp = np.append(errListUp,errUp)
 
     bestFit, bestParameters, bestCovariance, bestChiSquare, bestFitDegree, size = compareFits(time, meanValues, errListUp)
-    plt.figure(figsize=(9,7))
+    plt.figure()
     plt.title(str(KIC))
     plt.ylabel(r'$\sigma$ Per Quarter')
     plt.xlabel("$BJD_{TDB}-2454832$")
@@ -400,7 +400,7 @@ def plotTVF(KIC, files, fileCount, TVF_Fit_Data, fixedEnergy, targetIndex, **kwa
     **kwargs
         Show : If True, shows the plots.
     '''
-    plt.figure(figsize=(9,7))
+    plt.figure()
     #plt.title("Time vs Frequency (KIC "+str(KIC)+', E = '+str(fixedEnergy)+')')
     plt.title(str(KIC))
     plt.ylabel("Cummulative Flare Frequency")
