@@ -381,12 +381,13 @@ def calc_error_during_subtraction(data, data_err, fit_coeff, coeff_err, total_du
     -------------------------------------------------------------------------
     difference_err (array, floats): the propogated errors
     '''
-
-    a,b,c = fit_coeff[0],fit_coeff[1],fit_coeff[2]
-    da,db,dc = coeff_err[0],coeff_err[1],coeff_err[2]
+    a,b = fit_coeff[0],fit_coeff[1]
+    da,db = coeff_err[0],coeff_err[1]
+    #a,b,c = fit_coeff[0],fit_coeff[1],fit_coeff[2]
+    #da,db,dc = coeff_err[0],coeff_err[1],coeff_err[2]
 
     #using df = sqrt(df/dx * dx^2  +  df/dy * dy^2 + ...) where f is our powerlaw
-    df_squared = (a* data * BASE**(-b*data)*db)**2 + (BASE**(-b*data)*da)**2 + dc**2
+    df_squared = (a* data * BASE**(-b*data)*db)**2 + (BASE**(-b*data)*da)**2
 
     #if f = A + B, df = sqrt(da^2 + db^2)
     difference_err = np.sqrt(df_squared + data_err**2)
@@ -395,10 +396,10 @@ def calc_error_during_subtraction(data, data_err, fit_coeff, coeff_err, total_du
 
 
 
-def power_law(x, a, b, c):
+def power_law(x, a, b):
     '''A powerlaw function, parameters determined by curve_fit'''
 
-    return a*BASE**(-b*x)+c
+    return a*BASE**(-b*x)
 
 
 
@@ -570,7 +571,9 @@ def plot_evf(KIC, files, num_files,bin_, **kwargs):
 
          #offset the data at x=0 to reduce error in the the fit
         offset = min(total_evf_x_energy)
-        popt, pcov = curve_fit(power_law, total_evf_x_energy[sort]-offset, total_evf_y_frequency[sort], p0=(.02, .4, .02),maxfev = 3000, sigma = err_array)
+        #popt, pcov = curve_fit(power_law, total_evf_x_energy[sort]-offset, total_evf_y_frequency[sort], p0=(.02, .4, .02),maxfev = 3000, sigma = err_array)
+        popt, pcov = curve_fit(power_law, total_evf_x_energy[sort]-offset, total_evf_y_frequency[sort], p0=(.02, .4),maxfev = 3000, sigma = err_array)
+
         perr = np.sqrt(np.diag(pcov))
 
         if(PLOT):
