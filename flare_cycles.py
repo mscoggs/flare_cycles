@@ -51,7 +51,7 @@ BASE= 2.5
 MAX_DEGREE = 4
 DAY_RANGE = [0,400,800,1200,1600]
 GROUPING_SIZE = [1,2,3]
-FIXED_ENEGRY_LIST = [1,2,3]
+FIXED_ENEGRY_LIST = [1.5,2.5]
 CMAP = plt.cm.coolwarm
 COLOR = plt.cm.ScalarMappable(cmap=CMAP)
 COLOR.set_array(DAY_RANGE)
@@ -64,7 +64,7 @@ FIT_DATA_DIR = 'fit_data'
 PROMISING_DIR = 'promising_bin'
 NEUTRAL_DIR = 'neutral_bin'
 NOISE_DIR = 'noise_bin'
-BIN_LIST = [PROMISING_DIR]#, NEUTRAL_DIR, NOISE_DIR]
+BIN_LIST = [PROMISING_DIR, NEUTRAL_DIR, NOISE_DIR]
 
 #searching for, and making the directories if they don't exist
 for bin_ in BIN_LIST:
@@ -83,10 +83,10 @@ for bin_ in BIN_LIST:
 
 #Control plots get shown with SHOWX, which error bars end up on their plots with ERRORx and saving with SAVEX
 PLOT = True
-SHOWE = True
-SHOWES = True
-SHOWM = True
-SHOWT = True
+SHOWE = False
+SHOWES = False
+SHOWM = False
+SHOWT = False
 ERRORE = False
 ERRORES = False
 ERRORM = True
@@ -584,7 +584,7 @@ def plot_evf(KIC, files, num_files,bin_, **kwargs):
             plt.plot(total_evf_x_energy[sort][positive], power_fit[positive], c='black', lw=4, label="Best-Fit")
             plt.legend(loc='upper right')
             cbar = plt.colorbar(COLOR, ticks=DAY_RANGE)
-            cbar.set_label('$BJD_{TDB}-2454832$', rotation=270)
+            cbar.set_label('$BJD_{TDB}-2454832$',fontsize = 10, rotation=270)
             if(kwargs['save']==True): plt.savefig(bin_+'/'+EVF_DIR+'/'+ str(KIC) + '.png')
             if(kwargs['showe']==True): plt.show()
             plt.close()
@@ -653,7 +653,7 @@ def plot_evf_sub(KIC, quarterly_evf_x_energy, quarterly_evf_y_frequency, popt,pe
 
     if(PLOT):
         cbar = plt.colorbar(COLOR, ticks=DAY_RANGE)
-        cbar.set_label('$BJD_{TDB}-2454832$', rotation=270)
+        cbar.set_label('$BJD_{TDB}-2454832$',fontsize = 10, rotation=270)
         if(kwargs['save']==True): plt.savefig(bin_+'/'+EVF_SUB_DIR+'/'+ str(KIC) + '.png')
         if(kwargs['showes']==True): plt.show()
         plt.close()
@@ -732,7 +732,7 @@ def main():
     #cycling through three bins: promising, neutral and noise (good, bad, ugly). Code to determine which KIC belong to which bin available on the notebook
     for bin_ in BIN_LIST:
 
-        file = bin_+'/'+'target_single.txt'
+        file = bin_+'/'+'targets.txt'
         target_count = get_size(file)
         print("Working on \'"+bin_+"\' which has a total of "+str(target_count)+" targets.")
 
