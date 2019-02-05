@@ -64,7 +64,7 @@ FIT_DATA_DIR = 'fit_data'
 PROMISING_DIR = 'promising_bin'
 NEUTRAL_DIR = 'neutral_bin'
 NOISE_DIR = 'noise_bin'
-BIN_LIST = [PROMISING_DIR, NEUTRAL_DIR, NOISE_DIR]
+BIN_LIST = [PROMISING_DIR]#, NEUTRAL_DIR, NOISE_DIR]
 
 #searching for, and making the directories if they don't exist
 for bin_ in BIN_LIST:
@@ -83,16 +83,16 @@ for bin_ in BIN_LIST:
 
 #Control plots get shown with SHOWX, which error bars end up on their plots with ERRORx and saving with SAVEX
 PLOT = True
-SHOWE = False
-SHOWES = False
-SHOWM = False
-SHOWT = False
-ERRORE = False
-ERRORES = False
+SHOWE = True
+SHOWES = True
+SHOWM = True
+SHOWT = True
+ERRORE = True
+ERRORES = True
 ERRORM = True
 ERRORT = True
-SAVEPLOT = True
-SAVETXT = True
+SAVEPLOT = False
+SAVETXT = False
 
 
 
@@ -646,8 +646,14 @@ def plot_evf_sub(KIC, quarterly_evf_x_energy, quarterly_evf_y_frequency, popt,pe
         if(kwargs['errores']==True): plt.errorbar(quarterly_evf_x_energy[q], difference, yerr = [difference_err, difference_err], c = 'black', elinewidth=.6, fmt='o', markersize = 2, capsize=2)
 
         #meaning the difference from each quarter, which will be used in plot_evf_sub_mean
-        mean = np.mean(difference)
-        mean_err = np.sqrt(np.sum(err_up**2))/np.size(err_up)
+        #mean = np.mean(difference)
+        #mean_err = np.sqrt(np.sum(err_up**2))/np.size(err_up)
+
+        #Tuesday 2/5/19, changing to a weighted mean/error using https://ned.ipac.caltech.edu/level5/Leo/Stats4_5.html
+        mean_err = np.sqrt(1/(np.sum(1/(difference_err**2))))
+        mean = np.sum(difference / (difference_err**2)) / np.sum(1/(difference_err**2))
+
+
         mean_frequency = np.append(mean_frequency, mean)
         mean_frequency_err = np.append(mean_frequency_err, mean_err)
 
@@ -732,7 +738,8 @@ def main():
     #cycling through three bins: promising, neutral and noise (good, bad, ugly). Code to determine which KIC belong to which bin available on the notebook
     for bin_ in BIN_LIST:
 
-        file = bin_+'/'+'targets.txt'
+        #file = bin_+'/'+'targets.txt'
+        file = bin_+'/'+'target_single.txt'
         target_count = get_size(file)
         print("Working on \'"+bin_+"\' which has a total of "+str(target_count)+" targets.")
 
