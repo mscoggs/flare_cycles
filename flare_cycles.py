@@ -386,8 +386,11 @@ def calc_error_during_subtraction(data, data_err, fit_coeff, coeff_err, total_du
     #a,b,c = fit_coeff[0],fit_coeff[1],fit_coeff[2]
     #da,db,dc = coeff_err[0],coeff_err[1],coeff_err[2]
 
-    #using df = sqrt(df/dx * dx^2  +  df/dy * dy^2 + ...) where f is our powerlaw
-    df_squared = (a* data * BASE**(-b*data)*db)**2 + (BASE**(-b*data)*da)**2
+    #using df = sqrt((df/dx * dx)^2  +  (df/dy * dy)^2 + ...) where f is our powerlaw
+    # f = a*base**(-bx)
+    # df/da = base**(-bx)
+    # df/db = a*base**(-bx) * -x*ln(base)
+    df_squared = (a * (BASE**(-b*data)) * data * log(BASE) * db)**2    +    ((BASE**(-b*data))*da)**2
 
     #if f = A + B, df = sqrt(da^2 + db^2)
     difference_err = np.sqrt(df_squared + data_err**2)
@@ -637,6 +640,7 @@ def plot_evf_sub(KIC, quarterly_evf_x_energy, quarterly_evf_y_frequency, popt,pe
 
         fit = power_law(quarterly_evf_x_energy[q]-offset, *popt)
         err_up, err_dn = calc_error(quarterly_evf_y_frequency[q], total_duration)
+
 
         #propogating the error
         difference_err = calc_error_during_subtraction(quarterly_evf_x_energy[q]-offset, err_up, popt, perr ,total_duration)
