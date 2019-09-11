@@ -16,7 +16,8 @@ Description of output data: This program outputs graphs and the fit_data associa
 
 From the command line: python flare_cycles.py
 '''
-
+import corner
+import emcee
 import sys
 import os
 import shutil
@@ -24,18 +25,20 @@ from glob import glob
 from decimal import Decimal
 from pylab import *
 from scipy.optimize import curve_fit
+import scipy.optimize as op
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import warnings
 from IPython.display import set_matplotlib_formats
 
-set_matplotlib_formats('pdf', 'png')
+
+set_matplotlib_formats('pdf')
 plt.rcParams['savefig.dpi'] = 200
 plt.rcParams['figure.autolayout'] = False
 plt.rcParams['figure.figsize'] = 14,10
-plt.rcParams['axes.labelsize'] = 14
-plt.rcParams['axes.titlesize'] = 16
+plt.rcParams['axes.labelsize'] = 40
+plt.rcParams['axes.titlesize'] = 32
 plt.rcParams['font.size'] = 25
 plt.rcParams['lines.linewidth'] = 1.5
 plt.rcParams['lines.markersize'] = 4
@@ -48,10 +51,10 @@ BJD_2008 = 2454466.500000
 EPOINT = 0
 BIC_THRESHOLD = 2
 BASE= 2.5
-MAX_DEGREE = 4
+MAX_DEGREE = 1
 DAY_RANGE = [0,400,800,1200,1600]
-GROUPING_SIZE = [1,2,3]
-FIXED_ENEGRY_LIST = [1.5,2.5]
+GROUPING_SIZE = [1]
+FIXED_ENEGRY_LIST = []
 CMAP = plt.cm.coolwarm
 COLOR = plt.cm.ScalarMappable(cmap=CMAP)
 COLOR.set_array(DAY_RANGE)
@@ -64,36 +67,21 @@ FIT_DATA_DIR = 'fit_data'
 PROMISING_DIR = 'promising_bin'
 NEUTRAL_DIR = 'neutral_bin'
 NOISE_DIR = 'noise_bin'
-BIN_LIST = [PROMISING_DIR]#, NEUTRAL_DIR, NOISE_DIR]
 
-#searching for, and making the directories if they don't exist
-for bin_ in BIN_LIST:
-    if not os.path.exists(bin_):
-        os.makedirs(bin_)
-    if not os.path.exists(bin_+'/'+EVF_DIR):
-        os.makedirs(bin_+'/'+EVF_DIR)
-    if not os.path.exists(bin_+'/'+EVF_SUB_DIR):
-        os.makedirs(bin_+'/'+EVF_SUB_DIR)
-    if not os.path.exists(bin_+'/'+EVF_SUB_MEAN_DIR):
-        os.makedirs(bin_+'/'+EVF_SUB_MEAN_DIR)
-    if not os.path.exists(bin_+'/'+TVF_DIR):
-        os.makedirs(bin_+'/'+TVF_DIR)
-    if not os.path.exists(bin_+'/'+FIT_DATA_DIR):
-        os.makedirs(bin_+'/'+FIT_DATA_DIR)
 
 #Control plots get shown with SHOWX, which error bars end up on their plots with ERRORx and saving with SAVEX
 PLOT = True
-SHOWE = True
-SHOWES = True
-SHOWM = True
-SHOWT = True
-ERRORE = True
-ERRORES = True
-ERRORM = True
-ERRORT = True
-SAVEPLOT = False
+SHOWE = False
+SHOWES = False
+SHOWM = False
+SHOWT = False
+ERRORE = False
+ERRORES = False
+ERRORM = False
+ERRORT = False
+SAVEPLOT = True
 SAVETXT = False
-
+OK68_CUTOFF = False
 
 
 
@@ -140,9 +128,10 @@ def calc_chi_sq(data, fit, err_array):
 
 
 
-def calc_error(data, multiple):
+def calc_error_xi(data, multiple):
     '''
-    Calculate the asymmetric Poisson error, using Eqn 7 and Eqn 12 in Gehrels 1986 ApJ, 3030, 336.
+    Calculate the asymmetric Poisson error, using Eqn 7 and Eqn 12 in Gehrels 1986 ApJ, 3030, 336. (S=1, err = mean-data)
+    http://adsabs.harvard.edu/cgi-bin/nph-data_query?bibcode=1986ApJ...303..336G&link_type=ARTICLE&db_key=AST&high=
 
     Parameters:
     -------------------------------------------------------------------------
@@ -156,10 +145,16 @@ def calc_error(data, multiple):
     err_dn (array, floats): the down error bar
     '''
 
-    data = data*multiple
-    err_dn = (np.abs(data * (1.-1./(9. * data)-1./(3.*np.sqrt(data)))**3.-data))/multiple
-    err_up = (np.sqrt(data + 0.75) + 1.0)/multiple
-    return err_up, err_dn
+    frequency = (10**data)
+    count = frequency*multiple
+    err_dn_count = (np.abs(count * (1.-1./(9. * count)-1./(3.*np.sqrt(count)))**3.-count))
+    err_up_count = (np.sqrt(count + 0.75) + 1.0)
+    err_dn_frequecny = err_dn_count/multiple
+    err_up_frequecny = err_up_count/multiple
+    err_dn_log_freq = 0.434*(err_dn_frequecny/frequency)
+    err_up_log_freq = 0.434*(err_up_frequecny/frequency)
+
+    return err_up_log_freq, err_dn_log_freq
 
 
 
@@ -182,6 +177,8 @@ def calc_bic(size, degree, chi_sq):
 
     bic = size*np.log(chi_sq) + ((degree+1) * np.log(size))
     return bic
+
+
 
 
 
@@ -365,7 +362,7 @@ def get_label(best_parameters, degree_of_best_fit, group_size):
 
 
 
-def calc_error_during_subtraction(data, data_err, fit_coeff, coeff_err, total_duration):
+def calc_error_during_subtraction(data, data_err, fit_coeff, coeff_err, total_quarter_duration):
     '''
     Propogates the error during the subtraction step.
 
@@ -375,7 +372,7 @@ def calc_error_during_subtraction(data, data_err, fit_coeff, coeff_err, total_du
     data_err (array, floats): error in the yaxis, poisson error
     fit_coeff (array, floats): coefficients involve in the fit done by curve_fit
     coeff_err (array, floats): error in the coefficients
-    total_duration (int): total number of days that the star was observed
+    total_quarter_duration (int): total number of days that the star was observed
 
     Returns:
     -------------------------------------------------------------------------
@@ -402,12 +399,12 @@ def calc_error_during_subtraction(data, data_err, fit_coeff, coeff_err, total_du
 def power_law(x, a, b):
     '''A powerlaw function, parameters determined by curve_fit'''
 
-    return a*BASE**(-b*x)
+    return a*x+b
 
 
 
 
-def plot_tvf(KIC, files, num_files, tvf_data, fixed_energy, target_index, bin_, **kwargs):
+def plot_tvf(KIC, files, num_files, tvf_data, fixed_energy, target_index, **kwargs):
     '''
     plotting the time vs frequency for each KIC, at a fixed energy. Choose a fixed energy, and get the frequency
     for each quarter at the energy
@@ -420,13 +417,11 @@ def plot_tvf(KIC, files, num_files, tvf_data, fixed_energy, target_index, bin_, 
     tvf_data (2d-array, floats/int): the array that will become the file holding all of the fit data for tvf fit
     fixed_energy (float): energy the we're fixing on the xaxis of evf
     target_index (int): an index that keeps track of which row we're on in tvf_data
-    bin_ (string): the bin we're working on, one of: promising, neutral, noise (good, bad, ugly)
     '''
 
     if(PLOT):
 
         plt.figure()
-        plt.title(str(KIC))
         plt.ylabel(r"$\nu$")
         plt.xlabel("$BJD_{TDB}-2454832$")
         plt.yscale('log')
@@ -440,7 +435,7 @@ def plot_tvf(KIC, files, num_files, tvf_data, fixed_energy, target_index, bin_, 
     for x in range(num_files):
 
         #total number of days in each quarter
-        total_duration = pd.read_table(files[x], skiprows=5, nrows=1, header=None, delim_whitespace=True, usecols=(7,)).iloc[0].values[0]
+        total_quarter_duration = pd.read_table(files[x], skiprows=5, nrows=1, header=None, delim_whitespace=True, usecols=(7,)).iloc[0].values[0]
         df = pd.read_table(files[x], comment="#", delimiter=",", names=NAMES)
 
         #grabbing the energy (equivalent duration) column from each file, sorting, then including only the positive values so it can be logged
@@ -450,7 +445,7 @@ def plot_tvf(KIC, files, num_files, tvf_data, fixed_energy, target_index, bin_, 
         sort = np.argsort(energy_p)
         evf_x_energy = (np.log10(energy_p) + EPOINT)[sort][::-1]
         evf_x_energy = evf_x_energy[np.isfinite(evf_x_energy)]
-        evf_y_frequency = (np.arange(1, len(evf_x_energy)+1, 1))/total_duration
+        evf_y_frequency = (np.arange(1, len(evf_x_energy)+1, 1))/total_quarter_duration
 
         #rarey, the restrictions remove all equiv_dur points
         if(len(evf_x_energy) == 0): continue
@@ -465,7 +460,7 @@ def plot_tvf(KIC, files, num_files, tvf_data, fixed_energy, target_index, bin_, 
             ffdYAtEnergy = np.interp(fixed_energy, evf_x_energy[::-1], evf_y_frequency[::-1])
             time = np.append(time, mean_start)
             frequency = np.append(frequency, ffdYAtEnergy)
-            err_up, err_dn = calc_error(ffdYAtEnergy, total_duration)
+            err_up, err_dn = calc_error_xi(ffdYAtEnergy, total_quarter_duration)
             err_array_up = np.append(err_array_up, err_up)
             err_array_dn = np.append(err_array_dn, err_dn)
 
@@ -478,20 +473,68 @@ def plot_tvf(KIC, files, num_files, tvf_data, fixed_energy, target_index, bin_, 
     tvf_data = append_array(tvf_data, target_index, KIC, size, 1, degree_of_best_fit, best_parameters, best_chi_sq, best_covariance, bics)
 
     label = get_label(best_parameters, degree_of_best_fit, 1)
+
     if(PLOT):
-        plt.scatter(time, frequency, c=time, cmap=CMAP, lw=6)
+        plt.scatter(time, frequency, c=time, cmap=CMAP, s=400, edgecolors = 'black', alpha = 1)
         plt.plot(fit_linspace, best_fit, 'black', lw=4, label=label)
         if(kwargs['errort']==True): plt.errorbar(time, frequency, yerr = [err_array_dn,err_array_up], c='black', fmt='o', markersize=0, elinewidth=.8, capsize=6)#plotting error
-        plt.legend(loc="upper right")
+        #plt.legend(loc="upper right")
 
-        if(kwargs['save']==True): plt.savefig(bin_+'/'+TVF_DIR+'/'+str(KIC)+'_energy_equals'+str(fixed_energy)+'.png')
+        if(kwargs['save']==True): plt.savefig('plots/tvf/'+ str(KIC) + '_tvf.pdf')
         if(kwargs['showt']==True): plt.show()
         plt.close()
 
 
 
 
-def plot_evf(KIC, files, num_files,bin_, **kwargs):
+
+
+def fractional_lum(KIC, files, num_files, **kwargs):
+    if(PLOT):
+        plt.figure()
+        plt.ylabel(r'log( $L_{fl}$ / $L_{Kp}$ )')
+        plt.xlabel("$BJD_{TDB}-2454832$")
+
+    time = np.array([])
+    log_fractional_lum  = np.array([])
+
+    for x in range(num_files):
+
+        total_quarter_duration = pd.read_table(files[x], skiprows=5, nrows=1, header=None, delim_whitespace=True, usecols=(7,)).iloc[0].values[0]
+        df = pd.read_table(files[x], comment="#", delimiter=",", names=NAMES)
+
+        #grabbing the energy (equivalent duration) column from each file, sorting, then including only the positive values so it can be logged
+        energy = np.array(df['Equiv_Dur'])
+        positive = np.where(energy > 0)
+        energy_p = energy[positive]
+
+        time = np.append(time, np.sum(df['t_start'])/len(df['t_start']))
+        log_fractional_lum = np.append(log_fractional_lum, np.log10(np.sum(energy_p)/total_quarter_duration))
+
+
+
+
+    try:
+        err_array = np.zeros(np.size(time))
+        popt, pcov = curve_fit(power_law, time, log_fractional_lum, p0=(-.5, .4),maxfev = 100000)
+        perr = np.sqrt(np.diag(pcov))
+        popt, perr = mcmc(time, log_fractional_lum, err_array, popt[0], popt[1])
+        plt.scatter(time, log_fractional_lum, cmap=CMAP, s=400, c = time, edgecolors = 'black', alpha =1)
+
+        if(PLOT):
+            if(kwargs['save']==True): plt.savefig('plots/fractional_lum/'+ str(KIC) + '_frac_lum.pdf')
+            if(kwargs['showe']==True): plt.show()
+            plt.close()
+
+    except Exception as e:
+        print("ERROR: Couldn't do fractional_lum analysis to " + KIC + ". Moving on to the next KIC")
+        print("EXCEPTION: ",e)
+
+
+
+
+
+def plot_evf(KIC, files, num_files, **kwargs):
     '''
     Plotting a reverse cummulative sum of the flare frequency for each quarter.
 
@@ -500,7 +543,6 @@ def plot_evf(KIC, files, num_files,bin_, **kwargs):
     KIC (string): name of the star being studied
     files: All of the quarters, .flare files
     num_files (int): total number of quarters
-    bin_ (string): the bin we're working on, one of: promising, neutral, noise (good, bad, ugly)
 
     Returns:
     -------------------------------------------------------------------------
@@ -508,32 +550,30 @@ def plot_evf(KIC, files, num_files,bin_, **kwargs):
     quarterly_evf_y_frequency (2d-array, floats): each element is an array holding the y axis, frequency, for a quarter
     popt (array, floats): the curve_fit parameters
     perr (array, floats): the error in the curve_fit parameters
-    total_duration (float): the total number of days for a KIC
+    total_quarter_duration (float): the total number of days for a KIC
     time (array, floats): the mean times for each quarter
-    offset (float): a value that shifts the xaxis so that the first point starts at zero, helping the fit
     success (bool): curve_fit rarely fails to find a fit. If it fails, we can't do the subtraction and mean analysis
     '''
 
     if(PLOT):
-
-        plt.figure()
-        plt.title(str(KIC))
-        plt.ylabel(r"$\nu$")
-        plt.xlabel("Log Equivalent Duration")
-        plt.yscale('log')
+        f =plt.figure()
+        plt.ylabel("log( " + r"$\nu$ )")
+        plt.xlabel("log( Equivalent Duration )")
 
     err_array = np.array([])
     total_evf_x_energy = np.array([])
-    total_evf_y_frequency = np.array([])
+    total_log_evf_y_frequency = np.array([])
     quarterly_evf_x_energy = []
-    quarterly_evf_y_frequency = []
+    quarterly_log_evf_y_frequency = []
     time = np.array([])
+    flare_total = 0
+    duration_total = 0
 
     #loop over each .flare file, which represents one quarter
     for x in range(num_files):
 
         #total number of days in each quarter
-        total_duration = pd.read_table(files[x], skiprows=5, nrows=1, header=None, delim_whitespace=True, usecols=(7,)).iloc[0].values[0]
+        total_quarter_duration = pd.read_table(files[x], skiprows=5, nrows=1, header=None, delim_whitespace=True, usecols=(7,)).iloc[0].values[0]
         df = pd.read_table(files[x], comment="#", delimiter=",", names=NAMES)
 
         #grabbing the energy (equivalent duration) column from each file, sorting, then including only the positive values so it can be logged
@@ -542,53 +582,45 @@ def plot_evf(KIC, files, num_files,bin_, **kwargs):
         energy_p = energy[positive]
         sort = np.argsort(energy_p)
         evf_x_energy = np.log10((energy_p + EPOINT)[sort][::-1])
-        evf_y_frequency = (np.arange(1, len(evf_x_energy)+1, 1))/total_duration
+        log_evf_y_frequency = np.log10((np.arange(1, len(evf_x_energy)+1, 1))/total_quarter_duration)
 
         #removing data below the ED68i cutoff, only interested in the stronger flares
-        ok68 = (evf_x_energy >= np.log10(np.median(df['ED68i'])) + EPOINT)
+        if(kwargs['OK68']==True): ok68 = (evf_x_energy >= np.log10(np.median(df['ED68i'])) + EPOINT)
+        else: ok68 = np.isfinite(evf_x_energy)
 
+        flare_total += len(evf_x_energy[ok68])
+        duration_total += total_quarter_duration
         #collecting data for the evf subtraction step
         if (any(ok68)):
             quarterly_evf_x_energy.append(evf_x_energy[ok68])
-            quarterly_evf_y_frequency.append(evf_y_frequency[ok68])
-
-            #finding the mean time for each file
+            quarterly_log_evf_y_frequency.append(log_evf_y_frequency[ok68])
             time = np.append(time, np.sum(df['t_start'])/len(df['t_start']))
 
         total_evf_x_energy = np.append(total_evf_x_energy, evf_x_energy[ok68])
-        total_evf_y_frequency = np.append(total_evf_y_frequency, evf_y_frequency[ok68])
-        err_up, err_dn = calc_error(evf_y_frequency[ok68], total_duration)
-
+        total_log_evf_y_frequency = np.append(total_log_evf_y_frequency, log_evf_y_frequency[ok68])
+        err_up, err_dn = calc_error_xi(log_evf_y_frequency[ok68], total_quarter_duration)
         #err_up > err_dn, which is why we're using that for the error bars
         err_array = np.append(err_array, err_up)
 
         if(PLOT):
+            plt.plot(evf_x_energy[ok68], log_evf_y_frequency[ok68], lw = 3, c = CMAP(x/float(len(files))))
+            if(kwargs['errore']==True): plt.errorbar(evf_x_energy[ok68], log_evf_y_frequency[ok68], yerr = [err_dn, err_up], c = 'black', elinewidth=.3, fmt='o', markersize = .55)
 
-            plt.plot(evf_x_energy[ok68], evf_y_frequency[ok68], lw = 1, c = CMAP(x/float(len(files))))
-            if(kwargs['errore']==True): plt.errorbar(evf_x_energy[ok68], evf_y_frequency[ok68], yerr = [err_dn, err_up], c = 'black', elinewidth=.3, fmt='o', markersize = .55)
-
+    flares_per_day = str(flare_total/duration_total)[0:4]
     sort = np.argsort(total_evf_x_energy)
-    if(len(total_evf_x_energy) == 0):  return 0, 0, 0, 0, 0, 0, 0, False
+    if(len(total_evf_x_energy) == 0):  return 0, 0, 0, 0, 0, 0, False
+
 
     try:
-
-         #offset the data at x=0 to reduce error in the the fit
-        offset = min(total_evf_x_energy)
-        #popt, pcov = curve_fit(power_law, total_evf_x_energy[sort]-offset, total_evf_y_frequency[sort], p0=(.02, .4, .02),maxfev = 3000, sigma = err_array)
-        popt, pcov = curve_fit(power_law, total_evf_x_energy[sort]-offset, total_evf_y_frequency[sort], p0=(.02, .4),maxfev = 3000, sigma = err_array)
-
+        popt, pcov = curve_fit(power_law, total_evf_x_energy[sort], total_log_evf_y_frequency[sort], p0=(-.5, .4),maxfev = 100000)
         perr = np.sqrt(np.diag(pcov))
+        popt, perr = mcmc(total_evf_x_energy, total_log_evf_y_frequency, err_array, popt[0], popt[1])
 
         if(PLOT):
-            power_fit = power_law(total_evf_x_energy[sort]-offset, *popt)
-
-            #restricting the fit to points in the data's y-axis range
-            positive = np.where(power_fit > min(total_evf_y_frequency))
-            plt.plot(total_evf_x_energy[sort][positive], power_fit[positive], c='black', lw=4, label="Best-Fit")
-            plt.legend(loc='upper right')
-            cbar = plt.colorbar(COLOR, ticks=DAY_RANGE)
-            cbar.set_label('$BJD_{TDB}-2454832$',fontsize = 10, rotation=270)
-            if(kwargs['save']==True): plt.savefig(bin_+'/'+EVF_DIR+'/'+ str(KIC) + '.png')
+            text(0.88, 0.85, 'Avg. Flares Per Day: '+ flares_per_day, ha='right', va='top', fontsize = 30, bbox=dict(boxstyle='round', fc='w'), transform=f.transFigure)
+            #cbar = plt.colorbar(COLOR, ticks=DAY_RANGE)
+            #cbar.set_label('$BJD_{TDB}-2454832$',fontsize = 10, rotation=270)
+            if(kwargs['save']==True): plt.savefig('plots/evf/'+ str(KIC) + '_evf.pdf')
             if(kwargs['showe']==True): plt.show()
             plt.close()
 
@@ -598,14 +630,65 @@ def plot_evf(KIC, files, num_files,bin_, **kwargs):
         print("ERROR: Couldn't fit a power_law to " + KIC + ". Moving on to the next KIC")
         print("EXCEPTION: ",e)
         success = False
-        popt = perr = offset = 0
+        popt = perr = 0
 
-    return quarterly_evf_x_energy, quarterly_evf_y_frequency, popt, perr, total_duration, time,offset, success
-
-
+    return quarterly_evf_x_energy, quarterly_log_evf_y_frequency, popt, perr, total_quarter_duration, time, success
 
 
-def plot_evf_sub(KIC, quarterly_evf_x_energy, quarterly_evf_y_frequency, popt,perr,offset, total_duration,bin_, **kwargs):
+
+
+def lnlike(theta, x, y, yerr):
+    m, b, lnf = theta
+    model = m * x + b
+    inv_sigma2 = 1.0/(yerr**2 + model**2*np.exp(2*lnf))
+    return -0.5*(np.sum((y-model)**2*inv_sigma2 - np.log(inv_sigma2)))
+
+
+
+
+def lnprior(theta):
+    m, b, lnf = theta
+    if -5.0 < m < 0.5 and 0.0 < b < 10.0 and -10.0 < lnf < 1.0:
+        return 0.0
+    return -np.inf
+
+
+
+def lnprob(theta, x, y, yerr):
+    lp = lnprior(theta)
+    if not np.isfinite(lp):
+        return -np.inf
+    return lp + lnlike(theta, x, y, yerr)
+
+
+
+def mcmc(x,y,yerr, m_guess, b_guess):
+    f_true = 0.5
+    N = np.size(x)
+    yerr = 0.1+0.5*np.random.rand(N)
+    nll = lambda *args: -lnlike(*args)
+
+    result = op.minimize(nll, [m_guess, b_guess, np.log(f_true)], args=(x, y, yerr))
+    m_ml, b_ml, lnf_ml = result["x"]
+    ndim, nwalkers = 3, 100
+    pos = [result["x"] + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
+    sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, args=(x, y, yerr))
+    sampler.run_mcmc(pos, 500)
+
+    samples = sampler.chain[:, 50:, :].reshape((-1, ndim))
+    xl = np.array([np.min(x), np.max(x)])
+
+    for m, b, lnf in samples[np.random.randint(len(samples), size=100)]:
+        plt.plot(x, m*x+b, color="k", alpha=0.1)
+    samples[:, 2] = np.exp(samples[:, 2])
+    m_mcmc, b_mcmc, f_mcmc = map(lambda v: (v[1], v[2]-v[1], v[1]-v[0]), zip(*np.percentile(samples, [16, 50, 84],axis=0)))
+    plt.plot(x, m_mcmc[0]*x+ b_mcmc[0], color="r", lw=2, alpha=0.8)
+    #print("b: ",b_mcmc, "m: ",m_mcmc)
+    return [ m_mcmc[0], b_mcmc[0]], [ m_mcmc[1],  b_mcmc[1]]
+
+
+
+def plot_evf_sub(KIC, quarterly_evf_energy, quarterly_evf_log_frequency, popt,perr, total_quarter_duration, **kwargs):
     '''
     Takes the fit from plot_evf, and each of the quarters, and finds the difference between them.
 
@@ -613,12 +696,10 @@ def plot_evf_sub(KIC, quarterly_evf_x_energy, quarterly_evf_y_frequency, popt,pe
     -------------------------------------------------------------------------
     KIC (string): name of the star being studied
     quarterly_evf_x_energy (2d-array, floats): each element is an array holding the x axis, energy, for a quarter
-    quarterly_evf_y_frequency (2d-array, floats): each element is an array holding the y axis, frequency, for a quarter
+    quarterly_evf_log_frequency (2d-array, floats): each element is an array holding the y axis, frequency, for a quarter
     popt (array, floats): the curve_fit parameters
     perr (array, floats): the error in the curve_fit parameters
-    offset (float): a value that shifts the xaxis so that the first point starts at zero, helping the fit
-    total_duration (float): the total number of days for a KIC
-    bin_ (string): the bin we're working on, one of: promising, neutral, noise (good, bad, ugly)
+    total_quarter_duration (float): the total number of days for a KIC
 
     Returns:
     -------------------------------------------------------------------------
@@ -629,51 +710,50 @@ def plot_evf_sub(KIC, quarterly_evf_x_energy, quarterly_evf_y_frequency, popt,pe
     if(PLOT):
 
         plt.figure()
-        plt.title(str(KIC))
-        plt.ylabel(r'$\nu$ - $\bar \nu$')
-        plt.xlabel("Log Equivalent Duration")
+        #plt.ylabel(r'$\nu$ - $\bar \nu$')
+        plt.ylabel(r'log  $\nu$  - fit')
+        plt.xlabel("log( Equivalent Duration )")
 
-    mean_frequency = np.array([])
-    mean_frequency_err = np.array([])
+    mean_log_frequency = np.array([])
+    mean_log_frequency_err = np.array([])
+    error_per_quarter = np.array([])
 
-    for q in range(len(quarterly_evf_x_energy)):
+    for q in range(len(quarterly_evf_energy)):
 
-        fit = power_law(quarterly_evf_x_energy[q]-offset, *popt)
-        err_up, err_dn = calc_error(quarterly_evf_y_frequency[q], total_duration)
-
+        fit = power_law(quarterly_evf_energy[q], *popt)
+        err_up, err_dn = calc_error_xi(quarterly_evf_log_frequency[q], total_quarter_duration)
+        error_per_quarter = np.append(error_per_quarter, np.sqrt(np.sum(err_up**2))/np.size(err_up))
 
         #propogating the error
-        difference_err = calc_error_during_subtraction(quarterly_evf_x_energy[q]-offset, err_up, popt, perr ,total_duration)
-        difference = quarterly_evf_y_frequency[q]-fit
+        difference_err = err_up #calc_error_during_subtraction(quarterly_evf_x_energy[q]t, err_up, popt, perr ,total_quarter_duration)
+        difference = quarterly_evf_log_frequency[q]-fit
 
-        if(PLOT): plt.plot(quarterly_evf_x_energy[q], difference, c = CMAP(q/float(len(quarterly_evf_x_energy))))
-        if(kwargs['errores']==True): plt.errorbar(quarterly_evf_x_energy[q], difference, yerr = [difference_err, difference_err], c = 'black', elinewidth=.6, fmt='o', markersize = 2, capsize=2)
+        if(PLOT): plt.plot(quarterly_evf_energy[q], difference, c = CMAP(q/float(len(quarterly_evf_energy))))
+        if(kwargs['errores']==True): plt.errorbar(quarterly_evf_energy[q], difference, yerr = [difference_err, difference_err], c = 'black', elinewidth=.3, fmt='o', markersize = .55)
 
         #meaning the difference from each quarter, which will be used in plot_evf_sub_mean
         #mean = np.mean(difference)
         #mean_err = np.sqrt(np.sum(err_up**2))/np.size(err_up)
 
         #Tuesday 2/5/19, changing to a weighted mean/error using https://ned.ipac.caltech.edu/level5/Leo/Stats4_5.html
-        mean_err = np.sqrt(1/(np.sum(1/(difference_err**2))))
-        mean = np.sum(difference / (difference_err**2)) / np.sum(1/(difference_err**2))
+        mean_log_per_quarter = np.sum(difference / (difference_err**2)) / np.sum(1/(difference_err**2))
 
-
-        mean_frequency = np.append(mean_frequency, mean)
-        mean_frequency_err = np.append(mean_frequency_err, mean_err)
+        mean_log_frequency = np.append(mean_log_frequency, mean_log_per_quarter)
+        mean_log_frequency_err = np.append(mean_log_frequency_err, np.sqrt(1/(np.sum(1/(difference_err**2)))))
 
     if(PLOT):
-        cbar = plt.colorbar(COLOR, ticks=DAY_RANGE)
-        cbar.set_label('$BJD_{TDB}-2454832$',fontsize = 10, rotation=270)
-        if(kwargs['save']==True): plt.savefig(bin_+'/'+EVF_SUB_DIR+'/'+ str(KIC) + '.png')
+        #cbar = plt.colorbar(COLOR, ticks=DAY_RANGE)
+        #cbar.set_label('$BJD_{TDB}-2454832$',fontsize = 10, rotation=270)
+        if(kwargs['save']==True):plt.savefig('plots/evf_sub/'+ str(KIC) + '_evf_sub.pdf')
         if(kwargs['showes']==True): plt.show()
         plt.close()
 
-    return mean_frequency, mean_frequency_err
+    return mean_log_frequency, mean_log_frequency_err, error_per_quarter
 
 
 
 
-def plot_evf_sub_mean(KIC, time, mean_frequency, mean_frequency_err,  group_size, evf_sub_mean_data, target_index,bin_,**kwargs):
+def plot_evf_sub_mean(KIC, time, mean_frequency, mean_frequency_err,  group_size, evf_sub_mean_data,error_per_quarter, target_index,**kwargs):
     '''
     plots the mean difference for each quarter (calculated in plot_evf_sub) over time
 
@@ -686,11 +766,12 @@ def plot_evf_sub_mean(KIC, time, mean_frequency, mean_frequency_err,  group_size
     group_size (int): number of points that go into each grouping
     evf_sub_mean_data (2d-array, floats/int): the array that will become the file holding all of the fit data for efv_sub_mean fit
     target_index (int): an index that keeps track of which row we're on in tvf_data
-    bin_ (string): the bin we're working on, one of: promising, neutral, noise (good, bad, ugly)
     '''
-
+    mean_frequency_err = error_per_quarter
     #binning the data into groups of group_size
     if(group_size == 1): grouped_time, grouped_mean_vals, grouped_mean_errs = time, mean_frequency, mean_frequency_err
+    if(group_size == 1): grouped_time, grouped_mean_vals, grouped_mean_errs = time, mean_frequency, error_per_quarter
+
 
     else:
 
@@ -710,79 +791,64 @@ def plot_evf_sub_mean(KIC, time, mean_frequency, mean_frequency_err,  group_size
 
                 grouped_time[index] = grouped_time[index]/iterations
                 grouped_mean_vals[index] = grouped_mean_vals[index]/iterations
-                grouped_mean_errs[index] = np.sqrt(grouped_mean_errs[index])
+                grouped_mean_errs[index] = np.sqrt(grouped_mean_errs[index])/iterations
                 iterations = 0
                 index += 1
+
+    plt.figure()
+    plt.ylabel(r'$\overline{log(\nu) - fit}$')
+    plt.xlabel("$BJD_{TDB}-2454832$")
 
     #creating a dense linespace so the fit is smooth
     fit_linspace = np.linspace(min(grouped_time), max(grouped_time), num=100)
     best_fit, best_parameters, best_covariance, best_chi_sq, degree_of_best_fit, size, bics = compare_fits(grouped_time, grouped_mean_vals, grouped_mean_errs, fit_linspace)
+
+    popt, perr = mcmc(grouped_time,grouped_mean_vals,grouped_mean_errs, best_parameters[0], best_parameters[0])
+    best_fit = popt[0]*fit_linspace + popt[1]
+    best_parameters = popt
     evf_sub_mean_data = append_array(evf_sub_mean_data, target_index, KIC, size, group_size, degree_of_best_fit, best_parameters, best_chi_sq, best_covariance, bics)
 
     if(PLOT):
-        plt.figure()
-        plt.title(str(KIC))
-        plt.ylabel(r'$\overline{\nu - \bar \nu}$')
-        plt.xlabel("$BJD_{TDB}-2454832$")
-
-        label = get_label(best_parameters, degree_of_best_fit, group_size)
-        plt.scatter(grouped_time, grouped_mean_vals, c=grouped_time, cmap=CMAP, lw=6)
-        plt.plot(fit_linspace, best_fit, 'black', lw=4, label=label)
+        plt.scatter(grouped_time, grouped_mean_vals, c=grouped_time, cmap=CMAP, s=400, edgecolors = 'black', alpha=1)
         if(kwargs['errorm']==True): plt.errorbar(grouped_time, grouped_mean_vals, yerr = grouped_mean_errs, c='black', fmt='o', markersize=0, elinewidth=.8, capsize=6)
-        plt.legend(loc='upper right')
-
-        if(kwargs['save']==True): plt.savefig(bin_+'/'+EVF_SUB_MEAN_DIR+'/'+ str(KIC) + '_group_size_' + str(group_size) + '.png')
+        if(kwargs['save']==True): plt.savefig('plots/evf_sub_mean/'+ str(KIC) + '_evf_sub_mean_groupsize_' + str(group_size) + '.pdf')
         if(kwargs['showm']==True): plt.show()
-        plt.close()
+    plt.close()
 
 
 
 
 def main():
-    #cycling through three bins: promising, neutral and noise (good, bad, ugly). Code to determine which KIC belong to which bin available on the notebook
-    for bin_ in BIN_LIST:
-
-        #file = bin_+'/'+'targets.txt'
-        file = bin_+'/'+'target_single.txt'
+        file = 'targets_full.txt'
         target_count = get_size(file)
-        print("Working on \'"+bin_+"\' which has a total of "+str(target_count)+" targets.")
-
-        ##################################################################################################
-        #the energy vs frequency analysis
-        ##################################################################################################
         targets = open(file, "r")
 
-        #initializing the array that will contain the fit data. target_index keeps track of which KIC we're on, allowing us to add the fit data to the right row
         evf_sub_mean_data, target_index = init_data_array(target_count*len(GROUPING_SIZE) + 2)
 
         for line in targets:
 
-            #each line of the targets.txt file containt a KIC
             KIC = line.rstrip('\n')
-            print("Working on the energy_vs_frequency analysis for KIC: "+str(KIC))
             files = sorted(glob('KICs/'+KIC+"/*.flare"))
             num_files = len(files)
-            quarterly_evf_x_energy, quarterly_evf_y_frequency, popt, perr, total_duration, time, offset, success  = plot_evf(KIC, files, num_files,bin_, showe=SHOWE,errore=ERRORE,save=SAVEPLOT)
+            print("\nWorking on the fractional_lum analysis for KIC: "+str(KIC)+",   " + str(target_index-1) + "/" +str(target_count))
+            fractional_lum(KIC, files, num_files, showe=SHOWE,errore=ERRORE,save=SAVEPLOT, OK68=OK68_CUTOFF)
 
-            #rarely, plot_evf will throw and exception because curve_fit fails to find a fit, so success== everything went well
+            print("Working on the energy_vs_frequency analysis")
+            quarterly_evf_energy, quarterly_evf_log_frequency, popt, perr, total_quarter_duration, time, success  = plot_evf(KIC, files, num_files, showe=SHOWE,errore=ERRORE,save=SAVEPLOT, OK68=OK68_CUTOFF)
+
             if(success):
-
-                #subtracting the fit from each quarter and plotting it
-                mean_frequency, mean_frequency_err = plot_evf_sub(KIC, quarterly_evf_x_energy, quarterly_evf_y_frequency, popt,perr, offset, total_duration,bin_,showes=SHOWES,errores=ERRORES, save=SAVEPLOT)
+                print("Working on the plot_evf_sub analysis")
+                mean_log_frequency, mean_log_frequency_err, error_per_quarter = plot_evf_sub(KIC, quarterly_evf_energy, quarterly_evf_log_frequency, popt,perr, total_quarter_duration,showes=SHOWES,errores=ERRORES, save=SAVEPLOT)
 
                 for group_size in GROUPING_SIZE:
-
-                    #taking the mean of the subtraction found for each quarter in the last function, and plotting that mean over time
-                    plot_evf_sub_mean(KIC, time, mean_frequency, mean_frequency_err, group_size, evf_sub_mean_data, target_index,bin_,errorm=ERRORM,showm=SHOWM,save=SAVEPLOT)
+                    print("Working on the plot_evf_sub_mean analysis for group_size = ", group_size)
+                    plot_evf_sub_mean(KIC, time, mean_log_frequency, mean_log_frequency_err, group_size, evf_sub_mean_data,error_per_quarter, target_index,errorm=ERRORM,showm=SHOWM,save=SAVEPLOT)
                     target_index+= 1
 
         targets.close()
-        if(SAVETXT==True): np.savetxt(bin_+'/'+FIT_DATA_DIR+'/evf_mean_sub.txt', evf_sub_mean_data, fmt = '% 20s', delimiter=' ', newline='\n', header='', footer='', comments='# ')
+        #if(SAVETXT==True): np.savetxt(bin_+'/'+FIT_DATA_DIR+'/evf_mean_sub.txt', evf_sub_mean_data, fmt = '% 20s', delimiter=' ', newline='\n', header='', footer='', comments='# ')
 
 
-        ##################################################################################################
-        #the time vs energy analysis
-        ##################################################################################################
         for energyConstant in FIXED_ENEGRY_LIST:
 
             targets = open(file, "r")
@@ -791,51 +857,14 @@ def main():
 
             for line in targets:
 
-                #each line of the targets.txt file containt a KIC
                 KIC = line.rstrip('\n')
                 print("Working on the time_vs_frequency analysis for KIC: "+str(KIC)+ " at energy: "+str(fixed_energy))
                 files = glob('KICs/'+KIC+"/*.flare")
                 num_files = len(files)
-                plot_tvf(KIC, files, num_files, tvf_data, fixed_energy, target_index, bin_, showt=SHOWT, errort = ERRORT,save=SAVEPLOT)
+                plot_tvf(KIC, files, num_files, tvf_data, fixed_energy, target_index, showt=SHOWT, errort = ERRORT,save=SAVEPLOT)
                 target_index += 1
 
             targets.close()
-            if(SAVETXT==True): np.savetxt(bin_+'/'+FIT_DATA_DIR+'/fixed_energy_equals_'+str(fixed_energy)+'.txt', tvf_data, fmt = '% 20s', delimiter=' ', newline='\n', header='', footer='', comments='# ')
+            #if(SAVETXT==True): np.savetxt(bin_+'/'+FIT_DATA_DIR+'/fixed_energy_equals_'+str(fixed_energy)+'.txt', tvf_data, fmt = '% 20s', delimiter=' ', newline='\n', header='', footer='', comments='# ')
 
 main()
-
-
-
-'''The graveyard
-print("Input a .txt file containing the names of the KIC's you want to evaluate. After that, include:\n"+
-"For the Energy_vs_frequency analysis:\n'-se': show plots\n'-w' : show the whole plot, including data below ok68 cutoff\n'-ee': include error bars in the plots\n\n"+
-"For the Energy_vs_frequency mean-fit analysis:\n'-sm': show plots\n'-em': show error on the plots\n\n"+
-"For the Time_vs_fruency analysis:\n'-st': show plots\n\n"+
-"Use '-saveplot' to save all of the plots\n"+
-"Use '-savefit' to save the fit data\n")
-
-if (len(sys.argv)==1):
-    print("ERROR: NO TARGET FILE INCLUDED")
-    sys.exit()
-try:
-    file = sys.argv[1]
-    targets = open(file, "r") # a file containing all the KICs we want to plot
-except:
-    print("\nERROR: Cannot open "+file+".")
-    sys.exit()
-
-SHOWE = check_args("-se")
-ERRORE = check_args("-ee")
-WHOLE = check_args("-w")
-SHOWM = check_args("-sm")
-ERRORM = check_args("-em")
-SHOWT = check_args("-st")
-SAVEPLOT = check_args("-saveplot")
-SAVETXT = check_args("-savefit")
-
-def check_args(key):
-    for x in range(len(sys.argv)-2):
-        if sys.argv[x+2]==key:
-            return True
-    return False
-'''
