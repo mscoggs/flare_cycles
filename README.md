@@ -4,8 +4,8 @@ Searching for changes in flare rates using Kepler Data
 ## Who
 A project advised by Dr. James Davenport (@jradavenport), executed by Matthew Scoggins (@mscoggs)
 
-![alt text](https://github.com/mscoggs/flare_cycles/blob/master/promising_bin/energy_vs_frequency_plot/005791720.png)
+Our candidate star, showing a promising decline in flare rate in the fractional flare luminosity space (FFL)
+![alt text](https://github.com/mscoggs/flare_cycles/blob/master/candidate_star/008507979_frac_lum.png)
 
-![alt text](https://github.com/mscoggs/flare_cycles/blob/master/promising_bin/energy_vs_frequency_subtraction_plot/005791720.png)
-
-![alt text](https://github.com/mscoggs/flare_cycles/blob/master/promising_bin/energy_vs_frequency_subtraction_mean_plot/005791720_group_size_3.png)
+The corresponding flare frequency distribution (FFD) plot, showing a time-coordinated color gradient which agrees with the decline in flare rate
+![alt text](https://github.com/mscoggs/flare_cycles/blob/master/candidate_star/008507979_evf.png)
