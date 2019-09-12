@@ -6,7 +6,7 @@ Our candidate star, showing a promising decline in flare rate in the fractional 
 ![alt text](https://github.com/mscoggs/flare_cycles/blob/master/candidate_star/008507979_frac_lum.png)
 
 
-The corresponding flare frequency distribution (FFD) plot, showing a time-coordinated color gradient which agrees with the decline in flare rate
+The corresponding flare frequency distribution (FFD) plot with colors matching the timestamps in the FFL, showing a color gradient which agrees with the decline in flare rate
 ![alt text](https://github.com/mscoggs/flare_cycles/blob/master/candidate_star/008507979_evf.png)
 
 
