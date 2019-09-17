@@ -1,0 +1,107 @@
+\begin{thebibliography}{}
+\expandafter\ifx\csname natexlab\endcsname\relax\def\natexlab#1{#1}\fi
+
+\bibitem[{{Aschwanden} \& {Freeland}(2012)}]{aschwanden2012}
+{Aschwanden}, M.~J., \& {Freeland}, S.~L. 2012, \apj, 754, 112
+
+\bibitem[{{Borucki} {et~al.}(2010){Borucki}, {Koch}, {Basri}, {Batalha},
+  {Brown}, {Caldwell}, {Caldwell}, {Christensen-Dalsgaard}, {Cochran},
+  {DeVore}, {Dunham}, {Dupree}, {Gautier}, {Geary}, {Gilliland}, {Gould},
+  {Howell}, {Jenkins}, {Kondo}, {Latham}, {Marcy}, {Meibom}, {Kjeldsen},
+  {Lissauer}, {Monet}, {Morrison}, {Sasselov}, {Tarter}, {Boss}, {Brownlee},
+  {Owen}, {Buzasi}, {Charbonneau}, {Doyle}, {Fortney}, {Ford}, {Holman},
+  {Seager}, {Steffen}, {Welsh}, {Rowe}, {Anderson}, {Buchhave}, {Ciardi},
+  {Walkowicz}, {Sherry}, {Horch}, {Isaacson}, {Everett}, {Fischer}, {Torres},
+  {Johnson}, {Endl}, {MacQueen}, {Bryson}, {Dotson}, {Haas}, {Kolodziejczak},
+  {Van Cleve}, {Chandrasekaran}, {Twicken}, {Quintana}, {Clarke}, {Allen},
+  {Li}, {Wu}, {Tenenbaum}, {Verner}, {Bruhweiler}, {Barnes}, \&
+  {Prsa}}]{borucki2010}
+{Borucki}, W.~J., {Koch}, D., {Basri}, G., {et~al.} 2010, Science, 327, 977
+
+\bibitem[{{Davenport} {et~al.}(2019){Davenport}, {Covey}, {Clarke}, {Boeck},
+  {Cornet}, \& {Hawley}}]{davenport2019}
+{Davenport}, J. R.~A., {Covey}, K.~R., {Clarke}, R.~W., {et~al.} 2019, \apj,
+  871, 241
+
+\bibitem[{{Duncan} {et~al.}(1991){Duncan}, {Vaughan}, {Wilson}, {Preston},
+  {Frazer}, {Lanning}, {Noyes}, {Hartmann}, {Porter}, {Zwaan}, {Middelkoop},
+  M., \& {Mihalas}}]{duncan1991}
+{Duncan}, D.~K., {Vaughan}, A.~H., {Wilson}, O.~C., {et~al.} 1991, \apjs, 76,
+  47
+
+\bibitem[{{Foreman-Mackey} {et~al.}(2017){Foreman-Mackey}, {Agol},
+  {Ambikasaran}, \& {Angus}}]{emcee}
+{Foreman-Mackey}, D., {Agol}, E., {Ambikasaran}, S., \& {Angus}, R. 2017,
+  Astronomical Journal, 154
+
+\bibitem[{{Hawley} {et~al.}(2003){Hawley}, {Allred}, {Johns-Krull}, {Fisher},
+  {Abbett}, {Alekseev}, {Avgoloupis}, {Deustua}, {Gunn}, {Seiradakis}, {Sirk},
+  \& {Valenti}}]{hawley2003}
+{Hawley}, S.~L., {Allred}, J.~C., {Johns-Krull}, C.~M., {et~al.} 2003, \apj,
+  597, 535
+
+\bibitem[{{Hunt-Walker} {et~al.}(2012){Hunt-Walker}, {Hilton}, {Kowalski},
+  {Hawley}, \& {Matthews}}]{huntwalker2012}
+{Hunt-Walker}, N.~M., {Hilton}, E.~J., {Kowalski}, A.~F., {Hawley}, S.~L., \&
+  {Matthews}, J.~M. 2012, \pasp, 124, 545
+
+\bibitem[{Hunter(2007)}]{matplotlib}
+Hunter, J.~D. 2007, Computing in Science \& Engineering, 9, 90
+
+\bibitem[{Jones {et~al.}(2001--)Jones, Oliphant, Peterson, {et~al.}}]{scipy}
+Jones, E., Oliphant, T., Peterson, P., {et~al.} 2001--, {SciPy}: Open source
+  scientific tools for {Python}, ,
+
+\bibitem[{{Kopp} {et~al.}(2016){Kopp}, {Krivova}, {Wu}, \& {Lean}}]{kopp2016}
+{Kopp}, G., {Krivova}, N., {Wu}, C., \& {Lean}, J. 2016, Solar Physics
+
+\bibitem[{{Lacy} {et~al.}(1976){Lacy}, {Moffett}, \& {Evans}}]{lme1976}
+{Lacy}, C.~H., {Moffett}, T.~J., \& {Evans}, D.~S. 1976, \apj
+
+\bibitem[{{Lurie} {et~al.}(2015){Lurie}, {Davenport}, {Hawley}, {Wilkinson},
+  P., F., \& {Hebb}}]{lurie2015}
+{Lurie}, J.~C., {Davenport}, J. R.~A., {Hawley}, S.~L., {et~al.} 2015, \apj,
+  800, 14
+
+\bibitem[{McKinney(2010)}]{pandas}
+McKinney, W. 2010, in Proceedings of the 9th Python in Science Conference, ed.
+  S.~van~der Walt \& J.~Millman, 51 -- 56
+
+\bibitem[{{Messina} \& {Guinan}(2002)}]{messina2002}
+{Messina}, S., \& {Guinan}, E.~F. 2002, \aap, 393, 225
+
+\bibitem[{{Montet} {et~al.}(2017){Montet}, {Tovar}, \&
+  {Foreman-Mackey}}]{montet2017}
+{Montet}, B.~T., {Tovar}, G., \& {Foreman-Mackey}, D. 2017, ArXiv e-prints
+
+\bibitem[{{Morris} {et~al.}(2019){Morris}, {Davenport}, {Giles}, {Hebb},
+  {Hawley}, {Angus}, {Gilman}, \& {Agol}}]{morris2019}
+{Morris}, B.~M., {Davenport}, J. R.~A., {Giles}, H. A.~C., {et~al.} 2019,
+  \mnras, 484, 3244
+
+\bibitem[{{Perez} \& {Granger}(2007)}]{ipython}
+{Perez}, F., \& {Granger}, B. 2007, IEEE, 9
+
+\bibitem[{{Ricker} {et~al.}(2015){Ricker}, {Winn}, {Vanderspek}, {Latham},
+  {Bakos}, {Bean}, {Berta-Thompson}, {Brown}, {Buchhave}, {Butler}, {Butler},
+  {Chaplin}, {Charbonneau}, {Christensen-Dalsgaard}, {Clampin}, {Deming},
+  {Doty}, {De Lee}, {Dressing}, {Dunham}, {Endl}, {Fressin}, {Ge}, {Henning},
+  {Holman}, {Howard}, {Ida}, {Jenkins}, {Jernigan}, {Johnson}, {Kaltenegger},
+  {Kawai}, {Kjeldsen}, {Laughlin}, {Levine}, {Lin}, {Lissauer}, {MacQueen},
+  {Marcy}, {McCullough}, {Morton}, {Narita}, {Paegert}, {Palle}, {Pepe},
+  {Pepper}, {Quirrenbach}, {Rinehart}, {Sasselov}, {Sato}, {Seager},
+  {Sozzetti}, {Stassun}, {Sullivan}, {Szentgyorgyi}, {Torres}, {Udry}, \&
+  {Villasenor}}]{tess}
+{Ricker}, G.~R., {Winn}, J.~N., {Vanderspek}, R., {et~al.} 2015, Journal of
+  Astronomical Telescopes, Instruments, and Systems, 1, 014003
+
+\bibitem[{{Veronig} {et~al.}(2002){Veronig}, {Temmer}, {Hanslmeier}, {Otruba},
+  \& {Messerotti}}]{veronig2002}
+{Veronig}, A., {Temmer}, M., {Hanslmeier}, A., {Otruba}, W., \& {Messerotti},
+  M. 2002, \aap, 382, 1070
+
+\bibitem[{{Walt} {et~al.}(2011){Walt}, {Colbert }, \& {Varoquaux}}]{numpy}
+{Walt}, S., {Colbert }, C., \& {Varoquaux}, G. 2011, Computing in Science \&
+  Engineering, 13
+
+\end{thebibliography}
