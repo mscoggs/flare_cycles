@@ -1,5 +1,5 @@
 # flare_cycles
-Searching for changes in flare rates using Kepler Data
+Searching for stellar cycles using changes in flare rates. Data provided by Kepler.
 
 
 Our candidate star, showing a promising decline in flare rate in the fractional flare luminosity space (FFL)
