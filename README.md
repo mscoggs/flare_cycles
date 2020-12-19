@@ -7,6 +7,8 @@ Searching for evidence of stellar cycles by using variations in flare rate. Data
 - glob
 - matplotlib
 - pandas
+- numpy
+- emcee
 
 # paper
 [Using Flare Rates to Search for Stellar Activity Cycles](https://iopscience.iop.org/article/10.3847/2515-5172/ab45a0)
