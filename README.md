@@ -10,7 +10,7 @@ Searching for evidence of stellar cycles by using variations in flare rate. Data
 - numpy
 - emcee
 
-# paper (published in The Research Notes of American Astronomical Society)
+## PAPER
 [Using Flare Rates to Search for Stellar Activity Cycles](https://iopscience.iop.org/article/10.3847/2515-5172/ab45a0)
 
 
